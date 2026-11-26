@@ -16,6 +16,12 @@ gui.Name = "AltManagerGUI"
 gui.ResetOnSpawn = false
 gui.Parent = playerGui
 
+local function round(inst, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius or 6)
+	corner.Parent = inst
+end
+
 local frame = Instance.new("Frame")
 frame.Name = "Main"
 frame.Size = UDim2.fromOffset(360, 510)
@@ -24,7 +30,9 @@ frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
+frame.ClipsDescendants = true
 frame.Parent = gui
+round(frame, 8)
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 40)
@@ -35,6 +43,15 @@ title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.Parent = frame
+
+-- Manager tab content (the original controls live in here)
+local managerPage = Instance.new("Frame")
+managerPage.Name = "ManagerPage"
+managerPage.Position = UDim2.fromOffset(0, 30)
+managerPage.Size = UDim2.new(1, 0, 1, -30)
+managerPage.BackgroundTransparency = 1
+managerPage.BorderSizePixel = 0
+managerPage.Parent = frame
 
 local function makeTextBox(placeholder, position)
 	local box = Instance.new("TextBox")
@@ -49,7 +66,8 @@ local function makeTextBox(placeholder, position)
 	box.Font = Enum.Font.Gotham
 	box.TextSize = 14
 	box.ClearTextOnFocus = false
-	box.Parent = frame
+	box.Parent = managerPage
+	round(box)
 	return box
 end
 
@@ -63,7 +81,8 @@ local function makeButton(text, position, size)
 	button.TextColor3 = Color3.new(1, 1, 1)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 13
-	button.Parent = frame
+	button.Parent = managerPage
+	round(button)
 	return button
 end
 
@@ -93,12 +112,13 @@ stopLoopButton.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
 
 local accountList = Instance.new("ScrollingFrame")
 accountList.Position = UDim2.fromOffset(10, 294)
-accountList.Size = UDim2.new(1, -20, 1, -344)
+accountList.Size = UDim2.new(1, -20, 1, -314)
 accountList.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
 accountList.BorderSizePixel = 0
 accountList.ScrollBarThickness = 6
 accountList.CanvasSize = UDim2.new()
-accountList.Parent = frame
+accountList.Parent = managerPage
+round(accountList)
 
 local layout = Instance.new("UIListLayout")
 layout.Padding = UDim.new(0, 4)
@@ -149,6 +169,7 @@ local function refresh()
 			entry.TextXAlignment = Enum.TextXAlignment.Left
 			entry.LayoutOrder = index
 			entry.Parent = accountList
+			round(entry, 4)
 
 			entry.Activated:Connect(function()
 				selectedIndex = index
@@ -444,3 +465,151 @@ end)
 stopLoopButton.Activated:Connect(function()
 	say(PREFIX .. "stoploop")
 end)
+
+-- ============================================================
+-- Header: collapse button + tabs (Manager / FAQ)
+-- ============================================================
+title.ZIndex = 2
+title.Text = "  Alt Manager"
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local collapseButton = Instance.new("TextButton")
+collapseButton.Size = UDim2.fromOffset(28, 28)
+collapseButton.Position = UDim2.new(1, -34, 0, 6)
+collapseButton.BackgroundColor3 = Color3.fromRGB(60, 60, 68)
+collapseButton.BorderSizePixel = 0
+collapseButton.Text = "-"
+collapseButton.TextColor3 = Color3.new(1, 1, 1)
+collapseButton.Font = Enum.Font.GothamBold
+collapseButton.TextSize = 18
+collapseButton.ZIndex = 4
+collapseButton.Parent = frame
+round(collapseButton)
+
+local tabBar = Instance.new("Frame")
+tabBar.Position = UDim2.fromOffset(0, 40)
+tabBar.Size = UDim2.new(1, 0, 0, 32)
+tabBar.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
+tabBar.BorderSizePixel = 0
+tabBar.ZIndex = 2
+tabBar.Parent = frame
+
+local tabLayout = Instance.new("UIListLayout")
+tabLayout.FillDirection = Enum.FillDirection.Horizontal
+tabLayout.Padding = UDim.new(0, 6)
+tabLayout.Parent = tabBar
+
+local tabPadding = Instance.new("UIPadding")
+tabPadding.PaddingLeft = UDim.new(0, 10)
+tabPadding.PaddingTop = UDim.new(0, 3)
+tabPadding.Parent = tabBar
+
+local tabButtons = {}
+for _, tabName in ipairs({ "Manager", "FAQ" }) do
+	local tab = Instance.new("TextButton")
+	tab.Size = UDim2.fromOffset(90, 26)
+	tab.BorderSizePixel = 0
+	tab.Text = tabName
+	tab.TextColor3 = Color3.new(1, 1, 1)
+	tab.Font = Enum.Font.GothamBold
+	tab.TextSize = 13
+	tab.ZIndex = 3
+	tab.Parent = tabBar
+	round(tab)
+	tabButtons[tabName] = tab
+end
+
+-- FAQ page
+local faqPage = Instance.new("ScrollingFrame")
+faqPage.Position = UDim2.fromOffset(10, 82)
+faqPage.Size = UDim2.new(1, -20, 1, -92)
+faqPage.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
+faqPage.BorderSizePixel = 0
+faqPage.ScrollBarThickness = 6
+faqPage.CanvasSize = UDim2.new()
+faqPage.AutomaticCanvasSize = Enum.AutomaticSize.Y
+faqPage.Visible = false
+faqPage.Parent = frame
+round(faqPage)
+
+local faqLayout = Instance.new("UIListLayout")
+faqLayout.Padding = UDim.new(0, 4)
+faqLayout.SortOrder = Enum.SortOrder.LayoutOrder
+faqLayout.Parent = faqPage
+
+local faqPadding = Instance.new("UIPadding")
+faqPadding.PaddingLeft = UDim.new(0, 8)
+faqPadding.PaddingRight = UDim.new(0, 8)
+faqPadding.PaddingTop = UDim.new(0, 8)
+faqPadding.PaddingBottom = UDim.new(0, 8)
+faqPadding.Parent = faqPage
+
+local faqOrder = 0
+local function faqText(text, isHeading)
+	faqOrder += 1
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 0)
+	label.AutomaticSize = Enum.AutomaticSize.Y
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextWrapped = true
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Top
+	label.Font = isHeading and Enum.Font.GothamBold or Enum.Font.Gotham
+	label.TextSize = isHeading and 14 or 13
+	label.TextColor3 = isHeading and Color3.fromRGB(130, 175, 255) or Color3.fromRGB(205, 205, 210)
+	label.LayoutOrder = faqOrder
+	label.Parent = faqPage
+end
+
+local function faq(heading, body)
+	faqText(heading, true)
+	faqText(body, false)
+end
+
+faq("Setup (do this on BOTH accounts)",
+	"1. Run this script on the Main account and on every Alt account.\n2. Add the Main's username as Main and each Alt's username as Alt. Or, from the Main, chat: !setalts altname1 altname2 and every copy fills itself in.\n3. Use Roblox usernames, not display names.")
+faq("Command Toggle",
+	"Turn it ON (green) on the Alt accounts, and on the Main too to be safe. A client with the toggle OFF ignores every command and loop. From the Main you can also chat !on or !off to flip the alts' toggles.")
+faq("Lists are per account",
+	"Each client keeps its own list. The Alt's list must contain the Main (as Main) and itself (as Alt), or it ignores commands. Lists are not saved, so they reset when you rejoin.")
+faq("Commands",
+	"!jump  !sit  !speed 32  !stop  !say hello\nOnly the Main can send them, and only Alts run them.")
+faq("Say box",
+	"On the Main it makes every Alt say your text. On any other account it sends a normal chat message. Anything starting with ! is sent as typed.")
+faq("Loops",
+	"Put seconds (minimum 2) and a command, then Start Loop. Alts repeat it until you press Stop Loop (or chat !stoploop). If the command isn't built in (like donate), the Alt chats it exactly as typed, so type it the way your game expects it.")
+faq("Nothing happens?",
+	"- Toggle is OFF on the Alt\n- Alt's list is missing the Main or itself\n- Old version of the script on the Alt\n- Typed a display name instead of the username\n- Chat is the legacy system (say needs the new TextChatService)")
+faq("Good to know",
+	"Commands show up in public chat for everyone. Re-running the script replaces the old window and switches the old copy off. Use the - button to collapse the window.")
+
+-- Tab switching + collapse
+local activeTab = "Manager"
+local expanded = true
+local fullSize = frame.Size
+
+local function applyView()
+	tabBar.Visible = expanded
+	managerPage.Visible = expanded and activeTab == "Manager"
+	faqPage.Visible = expanded and activeTab == "FAQ"
+	frame.Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40)
+	collapseButton.Text = expanded and "-" or "+"
+	for name, tab in pairs(tabButtons) do
+		tab.BackgroundColor3 = name == activeTab and Color3.fromRGB(75, 110, 170) or Color3.fromRGB(55, 55, 63)
+	end
+end
+
+for name, tab in pairs(tabButtons) do
+	tab.Activated:Connect(function()
+		activeTab = name
+		applyView()
+	end)
+end
+
+collapseButton.Activated:Connect(function()
+	expanded = not expanded
+	applyView()
+end)
+
+applyView()
