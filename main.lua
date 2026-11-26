@@ -359,8 +359,17 @@ local function handleMessage(senderName, text)
 	elseif name == "loop" then
 		-- !loop <seconds> <command> [args...]   (minimum 2s)
 		local interval = tonumber(table.remove(args, 1))
-		local command = commands[(table.remove(args, 1) or ""):lower()]
-		if interval and command then
+		local rawName = table.remove(args, 1)
+		if interval and rawName then
+			local command = commands[rawName:lower()]
+			if not command then
+				-- Not a built-in command: chat it exactly as typed so the game's own
+				-- command handling (e.g. donate) picks it up.
+				local fullText = rawName .. (#args > 0 and (" " .. table.concat(args, " ")) or "")
+				command = function()
+					say(fullText)
+				end
+			end
 			startLoop(math.max(interval, 2), command, args)
 		end
 	elseif commands[name] then
