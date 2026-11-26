@@ -1,5 +1,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
 local playerGui = player:WaitForChild("PlayerGui")
@@ -107,186 +109,6 @@ loopCommand.Size = UDim2.new(1, -98, 0, 32)
 local startLoopButton = makeButton("Start Loop", UDim2.fromOffset(10, 252), UDim2.new(0.5, -15, 0, 32))
 local stopLoopButton = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 252), UDim2.new(0.5, -15, 0, 32))
 stopLoopButton.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
--- ==========================================
--- MOVEMENT HACKS
--- ==========================================
-local hacksFrame = Instance.new("Frame")
-hacksFrame.Position = UDim2.fromOffset(10, 260)
-hacksFrame.Size = UDim2.new(1, -20, 0, 160)
-hacksFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
-hacksFrame.BorderSizePixel = 0
-hacksFrame.Parent = actionsPage
-round(hacksFrame)
-
-local hacksTitle = Instance.new("TextLabel")
-hacksTitle.Size = UDim2.new(1, 0, 0, 25)
-hacksTitle.BackgroundTransparency = 1
-hacksTitle.Text = "⚡ Movement Hacks"
-hacksTitle.TextColor3 = Color3.fromRGB(130, 175, 255)
-hacksTitle.Font = Enum.Font.GothamBold
-hacksTitle.TextSize = 14
-hacksTitle.TextXAlignment = Enum.TextXAlignment.Left
-hacksTitle.Parent = hacksFrame
-
-local function makeHackButton(text, yPos, colorOn, colorOff, onFunc, offFunc)
-	local btn = makeButton(text, UDim2.fromOffset(10, yPos), UDim2.fromOffset(150, 28))
-	btn.BackgroundColor3 = colorOff
-	local enabled = false
-	btn.Activated:Connect(function()
-		enabled = not enabled
-		if enabled then
-			btn.Text = text .. " ✓"
-			btn.BackgroundColor3 = colorOn
-			if onFunc then onFunc() end
-		else
-			btn.Text = text
-			btn.BackgroundColor3 = colorOff
-			if offFunc then offFunc() end
-		end
-	end)
-	return btn
-end
-
--- Noclip
-local noclipConn = nil
-makeHackButton("Noclip", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
-	function()
-		noclipConn = RunService.Stepped:Connect(function()
-			local char = player.Character
-			if char then
-				for _, part in ipairs(char:GetDescendants()) do
-					if part:IsA("BasePart") then part.CanCollide = false end
-				end
-			end
-		end)
-	end,
-	function()
-		if noclipConn then noclipConn:Disconnect() noclipConn = nil end
-		local char = player.Character
-		if char then
-			for _, part in ipairs(char:GetDescendants()) do
-				if part:IsA("BasePart") then part.CanCollide = true end
-			end
-		end
-	end
-)
-
--- Fly
-local flyConn = nil
-local flyEnabled = false
-makeHackButton("Fly", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
-	function()
-		flyEnabled = true
-		local char = player.Character
-		if not char then return end
-		local hum = char:FindFirstChildOfClass("Humanoid")
-		local hrp = char:FindFirstChild("HumanoidRootPart")
-		if not hum or not hrp then return end
-		for _, state in pairs(Enum.HumanoidStateType:GetEnumItems()) do
-			pcall(function() hum:SetStateEnabled(state, false) end)
-		end
-		hum:ChangeState(Enum.HumanoidStateType.Swimming)
-		hum.PlatformStand = true
-		local bg = Instance.new("BodyGyro")
-		bg.P = 9e4; bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
-		bg.CFrame = hrp.CFrame; bg.Parent = hrp
-		local bv = Instance.new("BodyVelocity")
-		bv.Velocity = Vector3.new(0,0.1,0); bv.MaxForce = Vector3.new(9e9,9e9,9e9)
-		bv.Parent = hrp
-		flyConn = RunService.RenderStepped:Connect(function()
-			if not flyEnabled then return end
-			local cam = workspace.CurrentCamera.CFrame
-			local flatLook = Vector3.new(cam.LookVector.X, 0, cam.LookVector.Z).Unit
-			local flatRight = Vector3.new(cam.RightVector.X, 0, cam.RightVector.Z).Unit
-			local dir = Vector3.new(0,0,0)
-			if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + flatLook end
-			if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - flatLook end
-			if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - flatRight end
-			if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + flatRight end
-			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
-			if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir - Vector3.new(0,1,0) end
-			bv.Velocity = dir * 50
-			bg.CFrame = cam
-		end)
-	end,
-	function()
-		flyEnabled = false
-		if flyConn then flyConn:Disconnect() flyConn = nil end
-		local char = player.Character
-		if char then
-			local hum = char:FindFirstChildOfClass("Humanoid")
-			local hrp = char:FindFirstChild("HumanoidRootPart")
-			if hum then
-				for _, state in pairs(Enum.HumanoidStateType:GetEnumItems()) do
-					pcall(function() hum:SetStateEnabled(state, true) end)
-				end
-				hum.PlatformStand = false
-			end
-			if hrp then
-				local bg = hrp:FindFirstChildOfClass("BodyGyro")
-				local bv = hrp:FindFirstChildOfClass("BodyVelocity")
-				if bg then bg:Destroy() end
-				if bv then bv:Destroy() end
-			end
-		end
-	end
-)
-
--- Speed
-local speedConn = nil
-makeHackButton("Speed 50", 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
-	function()
-		speedConn = RunService.Heartbeat:Connect(function()
-			local char = player.Character
-			if char then
-				local hum = char:FindFirstChildOfClass("Humanoid")
-				if hum then hum.WalkSpeed = 50 end
-			end
-		end)
-	end,
-	function()
-		if speedConn then speedConn:Disconnect() speedConn = nil end
-		local char = player.Character
-		if char then
-			local hum = char:FindFirstChildOfClass("Humanoid")
-			if hum then hum.WalkSpeed = 16 end
-		end
-	end
-)
-
--- Jump Power
-local jumpConn = nil
-makeHackButton("Jump 100", 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
-	function()
-		jumpConn = RunService.Heartbeat:Connect(function()
-			local char = player.Character
-			if char then
-				local hum = char:FindFirstChildOfClass("Humanoid")
-				if hum then
-					hum.UseJumpPower = true
-					hum.JumpPower = 100
-				end
-			end
-		end)
-	end,
-	function()
-		if jumpConn then jumpConn:Disconnect() jumpConn = nil end
-		local char = player.Character
-		if char then
-			local hum = char:FindFirstChildOfClass("Humanoid")
-			if hum then hum.JumpPower = 50 end
-		end
-	end
-)
-
--- Cleanup on destroy
-gui.Destroying:Connect(function()
-	if noclipConn then noclipConn:Disconnect() end
-	if flyConn then flyConn:Disconnect() end
-	if speedConn then speedConn:Disconnect() end
-	if jumpConn then jumpConn:Disconnect() end
-end)
--- ==========================================
 
 local accountList = Instance.new("ScrollingFrame")
 accountList.Position = UDim2.fromOffset(10, 174)
@@ -483,7 +305,6 @@ end
 
 local destroyed = false
 
-local RunService = game:GetService("RunService")
 local spinConnection
 
 local function stopSpin()
@@ -1270,6 +1091,186 @@ startLoopButton.Position = UDim2.fromOffset(10, 218)
 stopLoopButton.Parent = actionsPage
 stopLoopButton.Position = UDim2.new(0.5, 5, 0, 218)
 
+-- ==========================================
+-- MOVEMENT HACKS (Actions Tab)
+-- ==========================================
+local hacksFrame = Instance.new("Frame")
+hacksFrame.Position = UDim2.fromOffset(10, 260)
+hacksFrame.Size = UDim2.new(1, -20, 0, 160)
+hacksFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+hacksFrame.BorderSizePixel = 0
+hacksFrame.Parent = actionsPage
+round(hacksFrame)
+
+local hacksTitle = Instance.new("TextLabel")
+hacksTitle.Size = UDim2.new(1, 0, 0, 25)
+hacksTitle.BackgroundTransparency = 1
+hacksTitle.Text = "Movement Hacks"
+hacksTitle.TextColor3 = Color3.fromRGB(130, 175, 255)
+hacksTitle.Font = Enum.Font.GothamBold
+hacksTitle.TextSize = 14
+hacksTitle.TextXAlignment = Enum.TextXAlignment.Left
+hacksTitle.Parent = hacksFrame
+
+local function makeHackButton(text, yPos, colorOn, colorOff, onFunc, offFunc)
+	local btn = makeButton(text, UDim2.fromOffset(10, yPos), UDim2.fromOffset(150, 28))
+	btn.BackgroundColor3 = colorOff
+	local enabled = false
+	btn.Activated:Connect(function()
+		enabled = not enabled
+		if enabled then
+			btn.Text = text .. " [ON]"
+			btn.BackgroundColor3 = colorOn
+			if onFunc then onFunc() end
+		else
+			btn.Text = text
+			btn.BackgroundColor3 = colorOff
+			if offFunc then offFunc() end
+		end
+	end)
+	return btn
+end
+
+-- Noclip
+local noclipConn = nil
+makeHackButton("Noclip", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
+	function()
+		noclipConn = RunService.Stepped:Connect(function()
+			local char = player.Character
+			if char then
+				for _, part in ipairs(char:GetDescendants()) do
+					if part:IsA("BasePart") then part.CanCollide = false end
+				end
+			end
+		end)
+	end,
+	function()
+		if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+		local char = player.Character
+		if char then
+			for _, part in ipairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then part.CanCollide = true end
+			end
+		end
+	end
+)
+
+-- Fly
+local flyConn = nil
+local flyEnabled = false
+makeHackButton("Fly", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
+	function()
+		flyEnabled = true
+		local char = player.Character
+		if not char then return end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if not hum or not hrp then return end
+		for _, state in pairs(Enum.HumanoidStateType:GetEnumItems()) do
+			pcall(function() hum:SetStateEnabled(state, false) end)
+		end
+		hum:ChangeState(Enum.HumanoidStateType.Swimming)
+		hum.PlatformStand = true
+		local bg = Instance.new("BodyGyro")
+		bg.P = 9e4; bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
+		bg.CFrame = hrp.CFrame; bg.Parent = hrp
+		local bv = Instance.new("BodyVelocity")
+		bv.Velocity = Vector3.new(0,0.1,0); bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+		bv.Parent = hrp
+		flyConn = RunService.RenderStepped:Connect(function()
+			if not flyEnabled then return end
+			local cam = workspace.CurrentCamera.CFrame
+			local flatLook = Vector3.new(cam.LookVector.X, 0, cam.LookVector.Z).Unit
+			local flatRight = Vector3.new(cam.RightVector.X, 0, cam.RightVector.Z).Unit
+			local dir = Vector3.new(0,0,0)
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + flatLook end
+			if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - flatLook end
+			if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - flatRight end
+			if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + flatRight end
+			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+			if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir - Vector3.new(0,1,0) end
+			bv.Velocity = dir * 50
+			bg.CFrame = cam
+		end)
+	end,
+	function()
+		flyEnabled = false
+		if flyConn then flyConn:Disconnect() flyConn = nil end
+		local char = player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if hum then
+				for _, state in pairs(Enum.HumanoidStateType:GetEnumItems()) do
+					pcall(function() hum:SetStateEnabled(state, true) end)
+				end
+				hum.PlatformStand = false
+			end
+			if hrp then
+				local bg = hrp:FindFirstChildOfClass("BodyGyro")
+				local bv = hrp:FindFirstChildOfClass("BodyVelocity")
+				if bg then bg:Destroy() end
+				if bv then bv:Destroy() end
+			end
+		end
+	end
+)
+
+-- Speed
+local speedConn = nil
+makeHackButton("Speed 50", 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
+	function()
+		speedConn = RunService.Heartbeat:Connect(function()
+			local char = player.Character
+			if char then
+				local hum = char:FindFirstChildOfClass("Humanoid")
+				if hum then hum.WalkSpeed = 50 end
+			end
+		end)
+	end,
+	function()
+		if speedConn then speedConn:Disconnect() speedConn = nil end
+		local char = player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then hum.WalkSpeed = 16 end
+		end
+	end
+)
+
+-- Jump Power
+local jumpConn = nil
+makeHackButton("Jump 100", 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
+	function()
+		jumpConn = RunService.Heartbeat:Connect(function()
+			local char = player.Character
+			if char then
+				local hum = char:FindFirstChildOfClass("Humanoid")
+				if hum then
+					hum.UseJumpPower = true
+					hum.JumpPower = 100
+				end
+			end
+		end)
+	end,
+	function()
+		if jumpConn then jumpConn:Disconnect() jumpConn = nil end
+		local char = player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then hum.JumpPower = 50 end
+		end
+	end
+)
+
+gui.Destroying:Connect(function()
+	if noclipConn then noclipConn:Disconnect() end
+	if flyConn then flyConn:Disconnect() end
+	if speedConn then speedConn:Disconnect() end
+	if jumpConn then jumpConn:Disconnect() end
+end)
+-- ==========================================
+
 local settingsPage = Instance.new("Frame")
 settingsPage.Position = UDim2.fromOffset(0, 72)
 settingsPage.Size = UDim2.new(1, 0, 1, -72)
@@ -1322,8 +1323,13 @@ afkButton.Parent = settingsPage
 round(afkButton)
 
 afkButton.Activated:Connect(function()
-		-- ==========================================
--- CHAT SPY
+	antiAfk = not antiAfk
+	afkButton.Text = antiAfk and "Anti-AFK: ON" or "Anti-AFK: OFF"
+	afkButton.BackgroundColor3 = antiAfk and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
+end)
+
+-- ==========================================
+-- CHAT SPY (Settings Tab)
 -- ==========================================
 local chatSpyFrame = Instance.new("Frame")
 chatSpyFrame.Position = UDim2.fromOffset(10, 220)
@@ -1336,7 +1342,7 @@ round(chatSpyFrame)
 local chatSpyTitle = Instance.new("TextLabel")
 chatSpyTitle.Size = UDim2.new(1, 0, 0, 25)
 chatSpyTitle.BackgroundTransparency = 1
-chatSpyTitle.Text = "👁️ Chat Spy"
+chatSpyTitle.Text = "Chat Spy"
 chatSpyTitle.TextColor3 = Color3.fromRGB(130, 175, 255)
 chatSpyTitle.Font = Enum.Font.GothamBold
 chatSpyTitle.TextSize = 14
@@ -1391,14 +1397,15 @@ chatSpyToggle.Activated:Connect(function()
 			if not sender or sender == player then return end
 			local text = message.Text
 			local isHidden = text:sub(1, 1) == ";"
-			local isMuted = pcall(function() return sender:HasTag("Muted") end) and sender:HasTag("Muted")
+			local isMuted = false
+			pcall(function() isMuted = sender:HasTag("Muted") end)
 			local prefix = ""
 			local color = Color3.fromRGB(200, 200, 200)
 			if isHidden then
-				prefix = "🚫 [HIDDEN] "
+				prefix = "[HIDDEN] "
 				color = Color3.fromRGB(255, 100, 100)
 			elseif isMuted then
-				prefix = "🤐 [MUTED] "
+				prefix = "[MUTED] "
 				color = Color3.fromRGB(255, 165, 0)
 			end
 			addLogEntry(prefix .. sender.Name .. ": " .. text, color)
@@ -1415,10 +1422,6 @@ gui.Destroying:Connect(function()
 	if spyConnection then spyConnection:Disconnect() end
 end)
 -- ==========================================
-	antiAfk = not antiAfk
-	afkButton.Text = antiAfk and "Anti-AFK: ON" or "Anti-AFK: OFF"
-	afkButton.BackgroundColor3 = antiAfk and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
-end)
 
 -- ==========================================
 -- DESTRUCTION PAGE & GRIEF TOOL INTEGRATION
@@ -1473,7 +1476,7 @@ local griefLoop = nil
 local TEXT_START = "Start Grief"
 local TEXT_STOP = "Stop Grief"
 local TEXT_NO_BLOCKS = "No Blocks Found"
-local ws = 0.05 -- wait-time budget per delete pass
+local ws = 0.05
 
 local function getSelectedPlayers()
 	local players = {}
@@ -1557,7 +1560,6 @@ local function startGrief()
 	griefLoop = task.spawn(function()
 		local dti = 0
 		local lastRefreshTime = 0
-		-- FIX: safely call shared.DeleteToolRefresh only if it is a function
 		if type(shared.DeleteToolRefresh) == "function" then
 			shared.DeleteToolRefresh()
 		end
@@ -1572,7 +1574,6 @@ local function startGrief()
 				local targetBlocks = getAllTargetBlocks()
 				if #targetBlocks > 0 then
 					if tick() - lastRefreshTime >= 5 then
-						-- FIX: safely call shared.DeleteToolRefresh only if it is a function
 						if type(shared.DeleteToolRefresh) == "function" then
 							shared.DeleteToolRefresh()
 						end
@@ -1640,7 +1641,7 @@ toggleGriefButton.Activated:Connect(function()
 		stopGrief()
 	else
 		startGrief()
-		end
+	end
 end)
 
 gui.Destroying:Connect(function()
@@ -1648,396 +1649,6 @@ gui.Destroying:Connect(function()
 		stopGrief()
 	end
 end)
--- ============ LAG MACHINE ============
-local lagMachineFrame = Instance.new("Frame")
-lagMachineFrame.Position = UDim2.fromOffset(10, 130)
-lagMachineFrame.Size = UDim2.new(1, -20, 0, 180)
-lagMachineFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
-lagMachineFrame.BorderSizePixel = 0
-lagMachineFrame.Parent = destructionPage
-round(lagMachineFrame)
-
-local lagTitle = Instance.new("TextLabel")
-lagTitle.Size = UDim2.new(1, 0, 0, 25)
-lagTitle.BackgroundTransparency = 1
-lagTitle.Text = "🌀 Lag Machine"
-lagTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
-lagTitle.Font = Enum.Font.GothamBold
-lagTitle.TextSize = 14
-lagTitle.TextXAlignment = Enum.TextXAlignment.Left
-lagTitle.Parent = lagMachineFrame
-
-local lagSelectBtn = Instance.new("TextButton")
-lagSelectBtn.Position = UDim2.fromOffset(10, 30)
-lagSelectBtn.Size = UDim2.new(1, -20, 0, 28)
-lagSelectBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-lagSelectBtn.BorderSizePixel = 0
-lagSelectBtn.Text = "Select Block"
-lagSelectBtn.TextColor3 = Color3.new(1, 1, 1)
-lagSelectBtn.Font = Enum.Font.GothamBold
-lagSelectBtn.TextSize = 13
-lagSelectBtn.Parent = lagMachineFrame
-round(lagSelectBtn)
-
-local lagStartBtn = Instance.new("TextButton")
-lagStartBtn.Position = UDim2.fromOffset(10, 64)
-lagStartBtn.Size = UDim2.new(0.5, -15, 0, 28)
-lagStartBtn.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
-lagStartBtn.BorderSizePixel = 0
-lagStartBtn.Text = "Start Spam"
-lagStartBtn.TextColor3 = Color3.new(1, 1, 1)
-lagStartBtn.Font = Enum.Font.GothamBold
-lagStartBtn.TextSize = 13
-lagStartBtn.Parent = lagMachineFrame
-round(lagStartBtn)
-
-local lagStopBtn = Instance.new("TextButton")
-lagStopBtn.Position = UDim2.new(0.5, 5, 0, 64)
-lagStopBtn.Size = UDim2.new(0.5, -15, 0, 28)
-lagStopBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
-lagStopBtn.BorderSizePixel = 0
-lagStopBtn.Text = "Stop Spam"
-lagStopBtn.TextColor3 = Color3.new(1, 1, 1)
-lagStopBtn.Font = Enum.Font.GothamBold
-lagStopBtn.TextSize = 13
-lagStopBtn.Parent = lagMachineFrame
-round(lagStopBtn)
-
-local lagStatus = Instance.new("TextLabel")
-lagStatus.Position = UDim2.fromOffset(10, 100)
-lagStatus.Size = UDim2.new(1, -20, 0, 20)
-lagStatus.BackgroundTransparency = 1
-lagStatus.Text = "Status: Idle"
-lagStatus.TextColor3 = Color3.fromRGB(170, 170, 175)
-lagStatus.Font = Enum.Font.Gotham
-lagStatus.TextSize = 12
-lagStatus.TextXAlignment = Enum.TextXAlignment.Left
-lagStatus.Parent = lagMachineFrame
-
-local lagBlockCount = Instance.new("TextLabel")
-lagBlockCount.Position = UDim2.fromOffset(10, 122)
-lagBlockCount.Size = UDim2.new(1, -20, 0, 20)
-lagBlockCount.BackgroundTransparency = 1
-lagBlockCount.Text = "Blocks: 0"
-lagBlockCount.TextColor3 = Color3.fromRGB(170, 170, 175)
-lagBlockCount.Font = Enum.Font.Gotham
-lagBlockCount.TextSize = 12
-lagBlockCount.TextXAlignment = Enum.TextXAlignment.Left
-lagBlockCount.Parent = lagMachineFrame
-
-local lagBlackholeBtn = Instance.new("TextButton")
-lagBlackholeBtn.Position = UDim2.fromOffset(10, 148)
-lagBlackholeBtn.Size = UDim2.new(1, -20, 0, 28)
-lagBlackholeBtn.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
-lagBlackholeBtn.BorderSizePixel = 0
-lagBlackholeBtn.Text = "Enable Blackhole"
-lagBlackholeBtn.TextColor3 = Color3.new(1, 1, 1)
-lagBlackholeBtn.Font = Enum.Font.GothamBold
-lagBlackholeBtn.TextSize = 13
-lagBlackholeBtn.Parent = lagMachineFrame
-round(lagBlackholeBtn)
-
--- Lag Machine Logic
-local lagMachine = {
-    isSelecting = false,
-    selectedBlock = nil,
-    isSpamming = false,
-    spamLoop = nil,
-    blockCount = 0,
-    blackholeEnabled = false,
-    bodyPositions = {},
-    highlight = nil,
-}
-
-local function findDeleteToolsLag()
-    local dtools = {}
-    for _, v in pairs(player.Backpack:GetChildren()) do
-        if v:IsA("Tool") and v.Name == "Delete" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
-            table.insert(dtools, {bt = v, e = v.Script.Event})
-        end
-    end
-    if player.Character then
-        for _, v in pairs(player.Character:GetChildren()) do
-            if v:IsA("Tool") and v.Name == "Delete" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
-                table.insert(dtools, {bt = v, e = v.Script.Event})
-            end
-        end
-    end
-    return dtools
-end
-
-local function findBuildToolsLag()
-    local btools = {}
-    for _, v in pairs(player.Backpack:GetChildren()) do
-        if v:IsA("Tool") and v.Name == "Build" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
-            table.insert(btools, {bt = v, e = v.Script.Event})
-        end
-    end
-    if player.Character then
-        for _, v in pairs(player.Character:GetChildren()) do
-            if v:IsA("Tool") and v.Name == "Build" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
-                table.insert(btools, {bt = v, e = v.Script.Event})
-            end
-        end
-    end
-    return btools
-end
-
-local function findPaintToolsLag()
-    local ptools = {}
-    for _, v in pairs(player.Backpack:GetChildren()) do
-        if v:IsA("Tool") and v.Name == "Paint" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
-            table.insert(ptools, {bt = v, e = v.Script.Event})
-        end
-    end
-    if player.Character then
-        for _, v in pairs(player.Character:GetChildren()) do
-            if v:IsA("Tool") and v.Name == "Paint" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
-                table.insert(ptools, {bt = v, e = v.Script.Event})
-            end
-        end
-    end
-    return ptools
-end
-
-local function highlightBlock(block)
-    if lagMachine.highlight then lagMachine.highlight:Destroy() end
-    local h = Instance.new("Highlight")
-    h.Adornee = block
-    h.FillColor = Color3.fromRGB(255, 255, 0)
-    h.OutlineColor = Color3.fromRGB(255, 200, 0)
-    h.FillTransparency = 0.5
-    h.OutlineTransparency = 0
-    h.Parent = block
-    lagMachine.highlight = h
-end
-
-local function clearHighlight()
-    if lagMachine.highlight then
-        lagMachine.highlight:Destroy()
-        lagMachine.highlight = nil
-    end
-end
-
--- Select block mode
-lagSelectBtn.Activated:Connect(function()
-    if lagMachine.isSelecting then
-        lagMachine.isSelecting = false
-        lagSelectBtn.Text = "Select Block"
-        lagSelectBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        clearHighlight()
-        return
-    end
-    lagMachine.isSelecting = true
-    lagSelectBtn.Text = "Click a block..."
-    lagSelectBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
-    
-    local mouse = player:GetMouse()
-    local conn
-    conn = mouse.Button1Down:Connect(function()
-        if not lagMachine.isSelecting then conn:Disconnect() return end
-        local target = mouse.Target
-        if target and target:IsA("BasePart") and target.Name == "Brick" then
-            local bricksFolder = workspace:FindFirstChild("Bricks")
-            if bricksFolder and target.Parent and target.Parent.Parent == bricksFolder then
-                lagMachine.selectedBlock = target
-                highlightBlock(target)
-                lagMachine.isSelecting = false
-                lagSelectBtn.Text = "Block Selected ✓"
-                lagSelectBtn.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
-                conn:Disconnect()
-            end
-        end
-    end)
-    task.delay(10, function()
-        if lagMachine.isSelecting then
-            lagMachine.isSelecting = false
-            lagSelectBtn.Text = "Select Block"
-            lagSelectBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-            conn:Disconnect()
-        end
-    end)
-end)
-
--- Start spam
-lagStartBtn.Activated:Connect(function()
-    if not lagMachine.selectedBlock or not lagMachine.selectedBlock:IsDescendantOf(workspace) then
-        lagStatus.Text = "Status: No block selected!"
-        task.wait(2)
-        lagStatus.Text = "Status: Idle"
-        return
-    end
-    
-    local buildTools = findBuildToolsLag()
-    if #buildTools == 0 then
-        lagStatus.Text = "Status: No Build tool!"
-        task.wait(2)
-        lagStatus.Text = "Status: Idle"
-        return
-    end
-    
-    lagMachine.isSpamming = true
-    lagMachine.blockCount = 0
-    lagStartBtn.Text = "Spamming..."
-    lagStartBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
-    lagStatus.Text = "Status: Spamming..."
-    
-    local block = lagMachine.selectedBlock
-    local bt = buildTools[1]
-    
-    lagMachine.spamLoop = task.spawn(function()
-        local counter = 0
-        while lagMachine.isSpamming do
-            if not block:IsDescendantOf(workspace) then
-                lagMachine.isSpamming = false
-                break
-            end
-            
-            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            if hrp and bt.e then
-                pcall(function()
-                    bt.e:FireServer(block, Enum.NormalId.Top, hrp.Position, "detailed")
-                end)
-                lagMachine.blockCount = lagMachine.blockCount + 1
-                lagBlockCount.Text = "Blocks: " .. lagMachine.blockCount
-            end
-            
-            counter = counter + 1
-            if counter % 50 == 0 then
-                -- Refresh tool
-                if bt.bt.Parent == player.Backpack then
-                    bt.bt.Parent = player.Character
-                    task.wait(0.1)
-                    bt.bt.Parent = player.Backpack
-                    task.wait(0.1)
-                    bt.bt.Parent = player.Character
-                end
-            end
-            
-            task.wait(0.05)
-        end
-    end)
-end)
-
--- Stop spam
-lagStopBtn.Activated:Connect(function()
-    lagMachine.isSpamming = false
-    if lagMachine.spamLoop then
-        task.cancel(lagMachine.spamLoop)
-        lagMachine.spamLoop = nil
-    end
-    lagStartBtn.Text = "Start Spam"
-    lagStartBtn.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
-    lagStatus.Text = "Status: Stopped (" .. lagMachine.blockCount .. " blocks)"
-    
-    -- Return tools to backpack
-    for _, v in pairs(player.Character:GetChildren()) do
-        if v:IsA("Tool") and (v.Name == "Build" or v.Name == "Paint") then
-            v.Parent = player.Backpack
-        end
-    end
-end)
-
--- Blackhole toggle
-lagBlackholeBtn.Activated:Connect(function()
-    lagMachine.blackholeEnabled = not lagMachine.blackholeEnabled
-    if lagMachine.blackholeEnabled then
-        lagBlackholeBtn.Text = "Disable Blackhole"
-        lagBlackholeBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
-        lagStatus.Text = "Status: Blackhole ON"
-        
-        -- Create handles part
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local handles = Instance.new("Part")
-            handles.Name = "BlackholeHandles"
-            handles.Size = Vector3.new(2, 2, 2)
-            handles.Position = hrp.Position + Vector3.new(0, 10, 0)
-            handles.Anchored = true
-            handles.CanCollide = false
-            handles.Transparency = 0.5
-            handles.Material = Enum.Material.ForceField
-            handles.BrickColor = BrickColor.new("Bright blue")
-            handles.Parent = workspace
-            
-            local sel = Instance.new("SelectionBox")
-            sel.Adornee = handles
-            sel.LineThickness = 0.05
-            sel.Color3 = Color3.fromRGB(0, 170, 255)
-            sel.Parent = handles
-            
-            lagMachine.handles = handles
-            
-            -- Attract all unanchored bricks with Drag
-            local attractLoop = task.spawn(function()
-                while lagMachine.blackholeEnabled do
-                    if handles and handles:IsDescendantOf(workspace) then
-                        local targetPos = handles.Position
-                        for _, obj in ipairs(workspace:GetDescendants()) do
-                            if obj:IsA("BasePart") and not obj.Anchored and obj:FindFirstChild("Drag") then
-                                -- Check it's not our character
-                                local isCharacterPart = false
-                                if player.Character then
-                                    for _, charPart in ipairs(player.Character:GetDescendants()) do
-                                        if charPart == obj then isCharacterPart = true break end
-                                    end
-                                end
-                                if not isCharacterPart then
-                                    local bp = obj:FindFirstChild("BlackholeBP")
-                                    if not bp then
-                                        bp = Instance.new("BodyPosition")
-                                        bp.Name = "BlackholeBP"
-                                        bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                                        bp.P = 100000
-                                        bp.D = 1000
-                                        bp.Parent = obj
-                                    end
-                                    bp.Position = targetPos
-                                end
-                            end
-                        end
-                    end
-                    task.wait(0.1)
-                end
-            end)
-            lagMachine.attractLoop = attractLoop
-        end
-    else
-        lagBlackholeBtn.Text = "Enable Blackhole"
-        lagBlackholeBtn.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
-        lagStatus.Text = "Status: Blackhole OFF"
-        
-        if lagMachine.attractLoop then
-            task.cancel(lagMachine.attractLoop)
-            lagMachine.attractLoop = nil
-        end
-        if lagMachine.handles then
-            lagMachine.handles:Destroy()
-            lagMachine.handles = nil
-        end
-        -- Release all blocks
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                local bp = obj:FindFirstChild("BlackholeBP")
-                if bp then bp:Destroy() end
-            end
-        end
-    end
-end)
-
-gui.Destroying:Connect(function()
-    if lagMachine.isSpamming then
-        lagMachine.isSpamming = false
-        if lagMachine.spamLoop then task.cancel(lagMachine.spamLoop) end
-    end
-    if lagMachine.blackholeEnabled then
-        lagMachine.blackholeEnabled = false
-        if lagMachine.attractLoop then task.cancel(lagMachine.attractLoop) end
-        if lagMachine.handles then lagMachine.handles:Destroy() end
-    end
-    clearHighlight()
-end)
--- ============ END LAG MACHINE ============
 -- ==========================================
 
 title.Size = UDim2.new(1, 0, 0, 26)
