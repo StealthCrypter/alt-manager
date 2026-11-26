@@ -100,12 +100,12 @@ local commandToggle = makeButton(
 )
 commandToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
 
-local sayInput = makeTextBox("Say something in chat", UDim2.fromOffset(10, 172))
+local sayInput = makeTextBox("Say", UDim2.fromOffset(10, 172))
 local sayButton = makeButton("Say", UDim2.fromOffset(250, 172), UDim2.fromOffset(100, 32))
 
 local loopSeconds = makeTextBox("Secs", UDim2.fromOffset(10, 212))
 loopSeconds.Size = UDim2.fromOffset(70, 32)
-local loopCommand = makeTextBox("Loop command, e.g. say hi / jump", UDim2.fromOffset(88, 212))
+local loopCommand = makeTextBox("Command", UDim2.fromOffset(88, 212))
 loopCommand.Size = UDim2.new(1, -98, 0, 32)
 local startLoopButton = makeButton("Start Loop", UDim2.fromOffset(10, 252), UDim2.new(0.5, -15, 0, 32))
 local stopLoopButton = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 252), UDim2.new(0.5, -15, 0, 32))
@@ -669,25 +669,10 @@ local function faq(heading, body)
 	faqText(body, false)
 end
 
-faq("Setup (do this on BOTH accounts)",
-	"1. Run this script on the Main account and on every Alt account.\n2. Add the Main's username as Main and each Alt's username as Alt. Or, from the Main, chat: !setalts altname1 altname2 and every copy fills itself in.\n3. Use Roblox usernames, not display names.")
-faq("Command Toggle",
-	"Turn it ON (green) on the Alt accounts, and on the Main too to be safe. A client with the toggle OFF ignores every command and loop. From the Main you can also chat !on or !off to flip the alts' toggles.")
-faq("Lists are per account",
-	"Each client keeps its own list. The Alt's list must contain the Main (as Main) and itself (as Alt), or it ignores commands. Lists are not saved, so they reset when you rejoin.")
-faq("Commands",
-	"!jump  !sit  !speed 32  !stop  !say hello\n!follow (alts pathfind after the Main)  !unfollow  !ping on/off\nOnly the Main can send them, and only Alts run them.")
-faq("Say box",
-	"On the Main it makes every Alt say your text. On any other account it sends a normal chat message. Anything starting with ! is sent as typed.")
-faq("Loops",
-	"Put seconds (minimum 2) and a command, then Start Loop. Alts repeat it until you press Stop Loop (or chat !stoploop). If the command isn't built in (like donate), the Alt chats it exactly as typed, so type it the way your game expects it.")
-faq("Nothing happens?",
-	"- Toggle is OFF on the Alt\n- Alt's list is missing the Main or itself\n- Old version of the script on the Alt\n- Typed a display name instead of the username\n- Chat is the legacy system (say needs the new TextChatService)")
-faq("Good to know",
-	"Commands show up in public chat for everyone. Re-running the script replaces the old window and switches the old copy off. Use the - button to collapse the window.")
-
-faq("Ping (anti-AFK)",
-	"Ping makes ALTS do a small action every few seconds (walk a bit, jump, optional click) so Roblox's idle kick doesn't remove them. On the Main, the Ping button just tells all Alts to start/stop (!ping on/off); the Main never pings itself. Alts need their Command Toggle ON. Minimum interval is 3s.")
+faq("Setup", "Run on every account. Main chats !setalts alt1 alt2, or add usernames by hand.")
+faq("Toggle", "Command Toggle ON on the alts. Or Main chats !on.")
+faq("Commands", "!jump  !sit  !speed n  !stop  !say text\n!follow [studs]  !unfollow  !ping on/off\n!loop secs cmd  !stoploop")
+faq("Not working?", "Toggle off, wrong or missing names, or old script on the alt.")
 
 -- ============================================================
 -- Ping tab: periodic movement / click so the account stays active
@@ -740,10 +725,10 @@ local pingOptions = { Walk = true, Jump = true, Click = false }
 
 local pingToggle = pingButton("Ping: OFF", 12)
 pingToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
-local pingInterval = pingBox("Seconds between pings (min 3)", 54, "10")
+local pingInterval = pingBox("Seconds", 54, "10")
 
 local optionButtons = {}
-local optionLabels = { Walk = "Walk around", Jump = "Jump", Click = "Click / shoot (screen center)" }
+local optionLabels = { Walk = "Walk", Jump = "Jump", Click = "Click" }
 local function paintOption(name)
 	local on = pingOptions[name]
 	optionButtons[name].Text = optionLabels[name] .. ": " .. (on and "ON" or "OFF")
@@ -757,19 +742,6 @@ for index, name in ipairs({ "Walk", "Jump", "Click" }) do
 		paintOption(name)
 	end)
 end
-
-local pingNote = Instance.new("TextLabel")
-pingNote.Position = UDim2.fromOffset(10, 224)
-pingNote.Size = UDim2.new(1, -20, 0, 80)
-pingNote.BackgroundTransparency = 1
-pingNote.TextWrapped = true
-pingNote.TextXAlignment = Enum.TextXAlignment.Left
-pingNote.TextYAlignment = Enum.TextYAlignment.Top
-pingNote.Font = Enum.Font.Gotham
-pingNote.TextSize = 13
-pingNote.TextColor3 = Color3.fromRGB(190, 190, 195)
-pingNote.Text = "Ping runs on Alts only. On the Main this button just tells every Alt to start or stop (!ping on/off). Alts need their Command Toggle ON to obey."
-pingNote.Parent = pingPage
 
 local function pingOnce()
 	local character = player.Character
@@ -832,9 +804,6 @@ pingToggle.Activated:Connect(function()
 	end
 end)
 
-faq("Follow",
-	"Follow tab: on the Main, Start Follow tells every Alt to pathfind after the Main (!follow <distance>) and Stop Follow tells them to stand still (!unfollow). Distance is the base gap in studs (3-50); each Alt adds 2 more so they spread out. On an Alt, the buttons follow/stop the Main from that Alt's own list. Alts need their Command Toggle ON.")
-
 -- ============================================================
 -- Follow tab
 -- ============================================================
@@ -851,7 +820,7 @@ followDistance.Position = UDim2.fromOffset(10, 12)
 followDistance.Size = UDim2.new(1, -20, 0, 32)
 followDistance.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
 followDistance.BorderSizePixel = 0
-followDistance.PlaceholderText = "Follow distance in studs (3-50)"
+followDistance.PlaceholderText = "Distance"
 followDistance.PlaceholderColor3 = Color3.fromRGB(170, 170, 175)
 followDistance.Text = "6"
 followDistance.TextColor3 = Color3.new(1, 1, 1)
@@ -887,21 +856,8 @@ followStatus.TextXAlignment = Enum.TextXAlignment.Left
 followStatus.Font = Enum.Font.GothamBold
 followStatus.TextSize = 13
 followStatus.TextColor3 = Color3.fromRGB(130, 175, 255)
-followStatus.Text = "Not following"
+followStatus.Text = "Idle"
 followStatus.Parent = followPage
-
-local followNote = Instance.new("TextLabel")
-followNote.Position = UDim2.fromOffset(10, 170)
-followNote.Size = UDim2.new(1, -20, 0, 80)
-followNote.BackgroundTransparency = 1
-followNote.TextWrapped = true
-followNote.TextXAlignment = Enum.TextXAlignment.Left
-followNote.TextYAlignment = Enum.TextYAlignment.Top
-followNote.Font = Enum.Font.Gotham
-followNote.TextSize = 13
-followNote.TextColor3 = Color3.fromRGB(190, 190, 195)
-followNote.Text = "On the Main these buttons command every Alt. Alts pathfind around obstacles and need their Command Toggle ON."
-followNote.Parent = followPage
 
 startFollowButton.Activated:Connect(function()
 	local distance = tonumber(followDistance.Text) or 6
@@ -1040,7 +996,7 @@ task.spawn(function()
 
 		local isMain = hasRole(player.Name, "Main")
 		local pingOn = isMain and relayOn or pingEnabled
-		footer.Text = ("Commands %s  |  Main %d  |  Alts %d  |  Ping %s"):format(
+		footer.Text = ("Cmds %s  |  %dM %dA  |  Ping %s"):format(
 			commandEnabled and "ON" or "OFF", mains, alts, pingOn and "ON" or "OFF"
 		)
 
@@ -1049,9 +1005,9 @@ task.spawn(function()
 		pingToggle.BackgroundColor3 = pingOn and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
 
 		if hasRole(player.Name, "Main") then
-			followStatus.Text = "Main: commands all Alts"
+			followStatus.Text = "Main"
 		else
-			followStatus.Text = followingName and ("Following: " .. followingName) or "Not following"
+			followStatus.Text = followingName and (followingName) or "Idle"
 		end
 
 		task.wait(0.5)
