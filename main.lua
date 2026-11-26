@@ -107,6 +107,186 @@ loopCommand.Size = UDim2.new(1, -98, 0, 32)
 local startLoopButton = makeButton("Start Loop", UDim2.fromOffset(10, 252), UDim2.new(0.5, -15, 0, 32))
 local stopLoopButton = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 252), UDim2.new(0.5, -15, 0, 32))
 stopLoopButton.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+-- ==========================================
+-- MOVEMENT HACKS
+-- ==========================================
+local hacksFrame = Instance.new("Frame")
+hacksFrame.Position = UDim2.fromOffset(10, 260)
+hacksFrame.Size = UDim2.new(1, -20, 0, 160)
+hacksFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+hacksFrame.BorderSizePixel = 0
+hacksFrame.Parent = actionsPage
+round(hacksFrame)
+
+local hacksTitle = Instance.new("TextLabel")
+hacksTitle.Size = UDim2.new(1, 0, 0, 25)
+hacksTitle.BackgroundTransparency = 1
+hacksTitle.Text = "⚡ Movement Hacks"
+hacksTitle.TextColor3 = Color3.fromRGB(130, 175, 255)
+hacksTitle.Font = Enum.Font.GothamBold
+hacksTitle.TextSize = 14
+hacksTitle.TextXAlignment = Enum.TextXAlignment.Left
+hacksTitle.Parent = hacksFrame
+
+local function makeHackButton(text, yPos, colorOn, colorOff, onFunc, offFunc)
+	local btn = makeButton(text, UDim2.fromOffset(10, yPos), UDim2.fromOffset(150, 28))
+	btn.BackgroundColor3 = colorOff
+	local enabled = false
+	btn.Activated:Connect(function()
+		enabled = not enabled
+		if enabled then
+			btn.Text = text .. " ✓"
+			btn.BackgroundColor3 = colorOn
+			if onFunc then onFunc() end
+		else
+			btn.Text = text
+			btn.BackgroundColor3 = colorOff
+			if offFunc then offFunc() end
+		end
+	end)
+	return btn
+end
+
+-- Noclip
+local noclipConn = nil
+makeHackButton("Noclip", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
+	function()
+		noclipConn = RunService.Stepped:Connect(function()
+			local char = player.Character
+			if char then
+				for _, part in ipairs(char:GetDescendants()) do
+					if part:IsA("BasePart") then part.CanCollide = false end
+				end
+			end
+		end)
+	end,
+	function()
+		if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+		local char = player.Character
+		if char then
+			for _, part in ipairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then part.CanCollide = true end
+			end
+		end
+	end
+)
+
+-- Fly
+local flyConn = nil
+local flyEnabled = false
+makeHackButton("Fly", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
+	function()
+		flyEnabled = true
+		local char = player.Character
+		if not char then return end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if not hum or not hrp then return end
+		for _, state in pairs(Enum.HumanoidStateType:GetEnumItems()) do
+			pcall(function() hum:SetStateEnabled(state, false) end)
+		end
+		hum:ChangeState(Enum.HumanoidStateType.Swimming)
+		hum.PlatformStand = true
+		local bg = Instance.new("BodyGyro")
+		bg.P = 9e4; bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
+		bg.CFrame = hrp.CFrame; bg.Parent = hrp
+		local bv = Instance.new("BodyVelocity")
+		bv.Velocity = Vector3.new(0,0.1,0); bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+		bv.Parent = hrp
+		flyConn = RunService.RenderStepped:Connect(function()
+			if not flyEnabled then return end
+			local cam = workspace.CurrentCamera.CFrame
+			local flatLook = Vector3.new(cam.LookVector.X, 0, cam.LookVector.Z).Unit
+			local flatRight = Vector3.new(cam.RightVector.X, 0, cam.RightVector.Z).Unit
+			local dir = Vector3.new(0,0,0)
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + flatLook end
+			if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - flatLook end
+			if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - flatRight end
+			if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + flatRight end
+			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+			if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir - Vector3.new(0,1,0) end
+			bv.Velocity = dir * 50
+			bg.CFrame = cam
+		end)
+	end,
+	function()
+		flyEnabled = false
+		if flyConn then flyConn:Disconnect() flyConn = nil end
+		local char = player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if hum then
+				for _, state in pairs(Enum.HumanoidStateType:GetEnumItems()) do
+					pcall(function() hum:SetStateEnabled(state, true) end)
+				end
+				hum.PlatformStand = false
+			end
+			if hrp then
+				local bg = hrp:FindFirstChildOfClass("BodyGyro")
+				local bv = hrp:FindFirstChildOfClass("BodyVelocity")
+				if bg then bg:Destroy() end
+				if bv then bv:Destroy() end
+			end
+		end
+	end
+)
+
+-- Speed
+local speedConn = nil
+makeHackButton("Speed 50", 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
+	function()
+		speedConn = RunService.Heartbeat:Connect(function()
+			local char = player.Character
+			if char then
+				local hum = char:FindFirstChildOfClass("Humanoid")
+				if hum then hum.WalkSpeed = 50 end
+			end
+		end)
+	end,
+	function()
+		if speedConn then speedConn:Disconnect() speedConn = nil end
+		local char = player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then hum.WalkSpeed = 16 end
+		end
+	end
+)
+
+-- Jump Power
+local jumpConn = nil
+makeHackButton("Jump 100", 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
+	function()
+		jumpConn = RunService.Heartbeat:Connect(function()
+			local char = player.Character
+			if char then
+				local hum = char:FindFirstChildOfClass("Humanoid")
+				if hum then
+					hum.UseJumpPower = true
+					hum.JumpPower = 100
+				end
+			end
+		end)
+	end,
+	function()
+		if jumpConn then jumpConn:Disconnect() jumpConn = nil end
+		local char = player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then hum.JumpPower = 50 end
+		end
+	end
+)
+
+-- Cleanup on destroy
+gui.Destroying:Connect(function()
+	if noclipConn then noclipConn:Disconnect() end
+	if flyConn then flyConn:Disconnect() end
+	if speedConn then speedConn:Disconnect() end
+	if jumpConn then jumpConn:Disconnect() end
+end)
+-- ==========================================
 
 local accountList = Instance.new("ScrollingFrame")
 accountList.Position = UDim2.fromOffset(10, 174)
