@@ -97,64 +97,16 @@ local commandToggle = makeButton(
 )
 commandToggle.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
 
-local sayInput = makeTextBox("Say", UDim2.fromOffset(10, 172))
-local sayButton = makeButton("Say", UDim2.fromOffset(250, 172), UDim2.fromOffset(100, 32))
-
-local loopSeconds = makeTextBox("Secs", UDim2.fromOffset(10, 212))
-loopSeconds.Size = UDim2.fromOffset(70, 32)
-local loopCommand = makeTextBox("Command", UDim2.fromOffset(88, 212))
-loopCommand.Size = UDim2.new(1, -98, 0, 32)
-local startLoopButton = makeButton("Start Loop", UDim2.fromOffset(10, 252), UDim2.new(0.5, -15, 0, 32))
-local stopLoopButton = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 252), UDim2.new(0.5, -15, 0, 32))
-stopLoopButton.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
-
 -- Grief Management Section
 local griefLabel = Instance.new("TextLabel")
 griefLabel.Size = UDim2.new(1, -20, 0, 20)
-griefLabel.Position = UDim2.fromOffset(10, 285) -- Adjusted position to fit in frame
+griefLabel.Position = UDim2.fromOffset(10, 152)
 griefLabel.BackgroundTransparency = 1
 griefLabel.Text = "Grief Management"
 griefLabel.TextColor3 = Color3.new(1, 1, 1)
 griefLabel.Font = Enum.Font.GothamBold
 griefLabel.TextSize = 14
 griefLabel.Parent = managerPage
-
-local selectDRow = makeTextBox("Select Players (comma sep)", UDim2.fromOffset(10, 310))
-selectDRow.Size = UDim2.fromOffset(230, 32)
-selectDRow.Position = UDim2.fromOffset(10, 310) -- This will overlap slightly with loop buttons if frame is small, but we adjust layout below
-
--- Re-adjusting positions to fit everything in 310px height
--- Main/Alt inputs: 52 + 32 = 84
--- Command toggle: 132 + 32 = 164
--- Say input: 172 + 32 = 204
--- Loop inputs: 212 + 32 = 244
--- Loop buttons: 252 + 32 = 284
--- Grief Label: 290 (approx)
--- Grief Input: 310 (approx)
-
--- Let's move the Grief section above the Loop section to save space or adjust layout
--- Actually, let's put Grief *above* Loop to keep it organized by feature type
--- Re-positioning Loop and Grief
-
-local loopSectionY = 212
-local griefSectionY = 172 -- Move Grief here, push Say down? No, let's keep order: Account -> Command -> Grief -> Loop
-
--- Let's re-arrange vertically to fit all in 310px
--- 1. Account (52-92)
--- 2. Command (132)
--- 3. Grief (172-204)
--- 4. Loop (212-284)
-
--- Update positions for Grief
-local griefTitle = Instance.new("TextLabel")
-griefTitle.Size = UDim2.new(1, -20, 0, 20)
-griefTitle.Position = UDim2.fromOffset(10, 152)
-griefTitle.BackgroundTransparency = 1
-griefTitle.Text = "Grief Management"
-griefTitle.TextColor3 = Color3.new(1, 1, 1)
-griefTitle.Font = Enum.Font.GothamBold
-griefTitle.TextSize = 14
-griefTitle.Parent = managerPage
 
 local griefInput = makeTextBox("Target Players (comma sep)", UDim2.fromOffset(10, 172))
 griefInput.Size = UDim2.fromOffset(230, 32)
@@ -163,32 +115,17 @@ griefInput.Position = UDim2.fromOffset(10, 172)
 local startGriefButton = makeButton("Start Grief", UDim2.fromOffset(250, 172), UDim2.fromOffset(100, 32), Color3.fromRGB(150, 50, 50))
 local stopGriefButton = makeButton("Stop Grief", UDim2.fromOffset(250, 208), UDim2.fromOffset(100, 32), Color3.fromRGB(100, 100, 100))
 
--- Move Loop section down to accommodate Grief
-local loopLabel = Instance.new("TextLabel")
-loopLabel.Size = UDim2.new(1, -20, 0, 20)
-loopLabel.Position = UDim2.fromOffset(10, 212)
-loopLabel.BackgroundTransparency = 1
-loopLabel.Text = "Auto Loop"
-loopLabel.TextColor3 = Color3.new(1, 1, 1)
-loopLabel.Font = Enum.Font.GothamBold
-loopLabel.TextSize = 14
-loopLabel.Parent = managerPage
+-- Loop Section (Moved down to accommodate Grief)
+local loopSeconds = makeTextBox("Secs", UDim2.fromOffset(10, 212))
+loopSeconds.Size = UDim2.fromOffset(70, 32)
+local loopCommand = makeTextBox("Command", UDim2.fromOffset(88, 212))
+loopCommand.Size = UDim2.new(1, -98, 0, 32)
+local startLoopButton = makeButton("Start Loop", UDim2.fromOffset(10, 252), UDim2.new(0.5, -15, 0, 32))
+local stopLoopButton = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 252), UDim2.new(0.5, -15, 0, 32))
+stopLoopButton.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
 
-local loopSecondsNew = makeTextBox("Secs", UDim2.fromOffset(10, 232))
-loopSecondsNew.Size = UDim2.fromOffset(70, 32)
-local loopCommandNew = makeTextBox("Command", UDim2.fromOffset(88, 232))
-loopCommandNew.Size = UDim2.new(1, -98, 0, 32)
-local startLoopButtonNew = makeButton("Start Loop", UDim2.fromOffset(10, 268), UDim2.new(0.5, -15, 0, 32))
-local stopLoopButtonNew = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 268), UDim2.new(0.5, -15, 0, 32))
-stopLoopButtonNew.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
-
--- Hide old loop elements if they exist in the original script context, 
--- but since we are rebuilding the UI structure, we just use the new ones.
--- The original script had loop inputs at 212. We moved them to 232/268.
-
--- Account List (Scrolling Frame)
 local accountList = Instance.new("ScrollingFrame")
-accountList.Position = UDim2.fromOffset(10, 174) -- Overlaps with Grief section visually if not careful
+accountList.Position = UDim2.fromOffset(10, 174)
 accountList.Size = UDim2.new(1, -20, 1, -224)
 accountList.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
 accountList.BorderSizePixel = 0
@@ -198,10 +135,8 @@ accountList.Parent = managerPage
 round(accountList)
 
 local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 5)
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.VerticalAlignment = Enum.VerticalAlignment.Top
-layout.Parent = accountList
+layout.Padding = UDim.new(0, 4)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
 
 -- --- GRIEF LOGIC INTEGRATION ---
 
