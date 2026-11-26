@@ -879,8 +879,10 @@ setPing = function(value, seconds, optionList)
 	end
 end
 
+local antiAfk = true
+
 player.Idled:Connect(function()
-	if pingEnabled then
+	if antiAfk or pingEnabled then
 		VirtualUser:CaptureController()
 		VirtualUser:ClickButton1(Vector2.new())
 	end
@@ -1108,12 +1110,12 @@ local function settingsLabel(text, y, isHeading)
 	label.Parent = settingsPage
 end
 
-settingsLabel("Credits", 12, true)
-settingsLabel("Made by stealthcrypter", 38, false)
-settingsLabel("GitHub", 68, false)
+settingsLabel("Credits", 64, true)
+settingsLabel("Made by stealthcrypter", 90, false)
+settingsLabel("GitHub", 120, false)
 
 local githubBox = Instance.new("TextBox")
-githubBox.Position = UDim2.fromOffset(10, 92)
+githubBox.Position = UDim2.fromOffset(10, 144)
 githubBox.Size = UDim2.new(1, -20, 0, 32)
 githubBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
 githubBox.BorderSizePixel = 0
@@ -1125,6 +1127,24 @@ githubBox.TextEditable = false
 githubBox.ClearTextOnFocus = false
 githubBox.Parent = settingsPage
 round(githubBox)
+
+local afkButton = Instance.new("TextButton")
+afkButton.Position = UDim2.fromOffset(10, 12)
+afkButton.Size = UDim2.new(1, -20, 0, 32)
+afkButton.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
+afkButton.BorderSizePixel = 0
+afkButton.Text = "Anti-AFK: ON"
+afkButton.TextColor3 = Color3.new(1, 1, 1)
+afkButton.Font = Enum.Font.GothamBold
+afkButton.TextSize = 13
+afkButton.Parent = settingsPage
+round(afkButton)
+
+afkButton.Activated:Connect(function()
+	antiAfk = not antiAfk
+	afkButton.Text = antiAfk and "Anti-AFK: ON" or "Anti-AFK: OFF"
+	afkButton.BackgroundColor3 = antiAfk and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
+end)
 
 local destructionPage = Instance.new("Frame")
 destructionPage.Position = UDim2.fromOffset(0, 72)
