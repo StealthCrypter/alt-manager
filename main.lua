@@ -14,7 +14,7 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
-frame.Size = UDim2.fromOffset(360, 430)
+frame.Size = UDim2.fromOffset(360, 510)
 frame.Position = UDim2.fromOffset(20, 20)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.BorderSizePixel = 0
@@ -79,9 +79,17 @@ commandToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
 local sayInput = makeTextBox("Say something in chat", UDim2.fromOffset(10, 172))
 local sayButton = makeButton("Say", UDim2.fromOffset(250, 172), UDim2.fromOffset(100, 32))
 
+local loopSeconds = makeTextBox("Secs", UDim2.fromOffset(10, 212))
+loopSeconds.Size = UDim2.fromOffset(70, 32)
+local loopCommand = makeTextBox("Loop command, e.g. say hi / jump", UDim2.fromOffset(88, 212))
+loopCommand.Size = UDim2.new(1, -98, 0, 32)
+local startLoopButton = makeButton("Start Loop", UDim2.fromOffset(10, 252), UDim2.new(0.5, -15, 0, 32))
+local stopLoopButton = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 252), UDim2.new(0.5, -15, 0, 32))
+stopLoopButton.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+
 local accountList = Instance.new("ScrollingFrame")
-accountList.Position = UDim2.fromOffset(10, 214)
-accountList.Size = UDim2.new(1, -20, 1, -264)
+accountList.Position = UDim2.fromOffset(10, 294)
+accountList.Size = UDim2.new(1, -20, 1, -344)
 accountList.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
 accountList.BorderSizePixel = 0
 accountList.ScrollBarThickness = 6
@@ -258,22 +266,92 @@ local commands = {
 	end,
 }
 
+local loopId = 0
+
+local function setCommandEnabled(value)
+	commandEnabled = value
+	commandToggle.Text = value and "Command Toggle: ON" or "Command Toggle: OFF"
+	commandToggle.BackgroundColor3 = value
+		and Color3.fromRGB(65, 125, 75)
+		or Color3.fromRGB(110, 65, 65)
+end
+
+-- Repeats a command every `interval` seconds. Stops by itself if the
+-- toggle goes OFF, this account stops being an Alt, or a new loop/!stoploop arrives.
+local function startLoop(interval, command, args)
+	loopId += 1
+	local myId = loopId
+	task.spawn(function()
+		while loopId == myId and commandEnabled and hasRole(player.Name, "Alt") do
+			command(args)
+			task.wait(interval)
+		end
+	end)
+end
+
+local function hasAnyMain()
+	for _, account in ipairs(accounts) do
+		if account.Role == "Main" then
+			return true
+		end
+	end
+	return false
+end
+
+-- !setalts a b c : sender becomes Main, listed names become Alts.
+-- Accepted only if no Main is set yet (first claim) or sender is already the Main.
+local function applySetAlts(senderName, args)
+	if hasAnyMain() and not hasRole(senderName, "Main") then
+		return
+	end
+	table.clear(accounts)
+	table.insert(accounts, { Name = senderName, Role = "Main" })
+	for _, name in ipairs(args) do
+		if name:lower() ~= senderName:lower() then
+			table.insert(accounts, { Name = name, Role = "Alt" })
+		end
+	end
+	selectedIndex = nil
+	refresh()
+end
+
 local function handleMessage(senderName, text)
-	if not commandEnabled then return end
-	if senderName:lower() == player.Name:lower() then return end
-	if not hasRole(player.Name, "Alt") then return end
-	if not hasRole(senderName, "Main") then return end
 	if text:sub(1, #PREFIX) ~= PREFIX then return end
 
 	local args = {}
 	for word in text:sub(#PREFIX + 1):gmatch("%S+") do
 		table.insert(args, word)
 	end
+	local name = (table.remove(args, 1) or ""):lower()
 
-	local name = table.remove(args, 1)
-	local command = name and commands[name:lower()]
-	if command then
-		command(args)
+	-- Runs on every client, including the sender's own.
+	if name == "setalts" then
+		applySetAlts(senderName, args)
+		return
+	end
+
+	if senderName:lower() == player.Name:lower() then return end
+	if not hasRole(player.Name, "Alt") then return end
+	if not hasRole(senderName, "Main") then return end
+
+	if name == "on" or name == "off" then
+		setCommandEnabled(name == "on")
+		return
+	end
+
+	if not commandEnabled then return end
+
+	if name == "stoploop" then
+		loopId += 1
+	elseif name == "loop" then
+		-- !loop <seconds> <command> [args...]   (minimum 2s)
+		local interval = tonumber(table.remove(args, 1))
+		local command = commands[(table.remove(args, 1) or ""):lower()]
+		if interval and command then
+			startLoop(math.max(interval, 2), command, args)
+		end
+	elseif commands[name] then
+		commands[name](args)
 	end
 end
 
@@ -311,7 +389,9 @@ local function sendSayBox()
 		return
 	end
 
-	if hasRole(player.Name, "Main") then
+	if text:sub(1, #PREFIX) == PREFIX then
+		say(text)
+	elseif hasRole(player.Name, "Main") then
 		say(PREFIX .. "say " .. text)
 	else
 		say(text)
@@ -325,4 +405,20 @@ sayInput.FocusLost:Connect(function(enterPressed)
 	if enterPressed then
 		sendSayBox()
 	end
+end)
+
+-- ============================================================
+-- Loop controls: send !loop / !stoploop (alts act on them if this
+-- account is the Main and their toggle is ON; min interval 2s).
+-- ============================================================
+startLoopButton.Activated:Connect(function()
+	local seconds = tonumber(loopSeconds.Text)
+	local command = loopCommand.Text:match("^%s*(.-)%s*$")
+	if seconds and command ~= "" then
+		say(PREFIX .. "loop " .. seconds .. " " .. command)
+	end
+end)
+
+stopLoopButton.Activated:Connect(function()
+	say(PREFIX .. "stoploop")
 end)
