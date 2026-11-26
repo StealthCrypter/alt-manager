@@ -1,11 +1,9 @@
--- LocalScript UI
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Destroy any other copy of this GUI before making ours.
 for _, old in ipairs(playerGui:GetChildren()) do
 	if old.Name == "AltManagerGUI" then
 		old:Destroy()
@@ -45,7 +43,6 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.Parent = frame
 
--- Manager tab content (the original controls live in here)
 local managerPage = Instance.new("Frame")
 managerPage.Name = "ManagerPage"
 managerPage.Position = UDim2.fromOffset(0, 30)
@@ -133,7 +130,6 @@ local removeButton = makeButton(
 )
 removeButton.BackgroundColor3 = Color3.fromRGB(160, 70, 70)
 
--- Local display data only; it is not saved and does not represent authenticated accounts.
 local accounts = {}
 local selectedIndex
 
@@ -220,14 +216,6 @@ commandToggle.Activated:Connect(function()
 end)
 
 refresh()
--- ============================================================
--- Command system (client-only, no server code)
--- Each client running this script listens to chat. A command runs
--- on THIS player's own character only when ALL of these are true:
---   1) Command Toggle is ON
---   2) the local player is listed as an Alt
---   3) the person who chatted is listed as a Main
--- ============================================================
 local TextChatService = game:GetService("TextChatService")
 local PREFIX = "!"
 
@@ -254,7 +242,6 @@ local function say(text)
 	end
 end
 
--- Add your own commands here. Each gets a table of args.
 local commands = {
 	jump = function()
 		local humanoid = getHumanoid()
@@ -295,7 +282,6 @@ local commands = {
 
 local destroyed = false
 
--- Spin + emotes -----------------------------------------------
 local RunService = game:GetService("RunService")
 local spinConnection
 
@@ -310,7 +296,6 @@ local function stopSpin()
 	end
 end
 
--- speed = full turns per second (0.5 - 10). Stops if the toggle goes OFF.
 local function startSpin(speed)
 	stopSpin()
 	local turns = math.clamp(speed or 2, 0.5, 10)
@@ -344,11 +329,9 @@ for _, emoteName in ipairs({ "wave", "dance", "dance2", "dance3", "cheer", "laug
 	end
 end
 
-local setPing -- defined in the Ping section below
+local setPing
 local loopId = 0
 
--- If another copy replaces this GUI, this copy goes inert: stops its loops
--- and ignores chat commands (so two scripts never both act on one message).
 gui.Destroying:Connect(function()
 	destroyed = true
 	loopId += 1
@@ -363,8 +346,6 @@ local function setCommandEnabled(value)
 		or Color3.fromRGB(110, 65, 65)
 end
 
--- Repeats a command every `interval` seconds. Stops by itself if the
--- toggle goes OFF, this account stops being an Alt, or a new loop/!stoploop arrives.
 local function startLoop(interval, command, args)
 	loopId += 1
 	local myId = loopId
@@ -376,9 +357,6 @@ local function startLoop(interval, command, args)
 	end)
 end
 
--- ============================================================
--- !follow / !unfollow: alts pathfind after the Main (client-side)
--- ============================================================
 local PathfindingService = game:GetService("PathfindingService")
 local followId = 0
 local followingName
@@ -418,7 +396,6 @@ local function startFollow(targetName, baseDistance, mode)
 	followingName = targetName
 	followingMode = mode
 	local baseGap = math.clamp(baseDistance or 6, 3, 50)
-	-- Each alt keeps a slightly different distance so they don't all stack up.
 	local stopDistance = baseGap + 2 * (altIndex() - 1)
 
 	task.spawn(function()
@@ -446,7 +423,6 @@ local function startFollow(targetName, baseDistance, mode)
 				elseif mode == "line" then
 					humanoid:MoveTo(targetRoot.Position - targetRoot.CFrame.LookVector * (baseGap * index))
 				else
-					-- Fixed slots relative to the Main (+Z is behind, X is sideways).
 					local total = altCount()
 					local offset
 					if mode == "circle" then
@@ -461,7 +437,7 @@ local function startFollow(targetName, baseDistance, mode)
 						local row = (index - 1) // columns
 						local column = (index - 1) % columns
 						offset = Vector3.new((column - (columns - 1) / 2) * baseGap, 0, baseGap * (row + 1))
-					else -- wall: one row, side by side
+					else
 						offset = Vector3.new((index - (total + 1) / 2) * baseGap, 0, baseGap)
 					end
 					humanoid:MoveTo(targetRoot.CFrame:PointToWorldSpace(offset))
@@ -474,7 +450,6 @@ local function startFollow(targetName, baseDistance, mode)
 
 				if ok and path.Status == Enum.PathStatus.Success then
 					local waypoints = path:GetWaypoints()
-					-- Walk the next few waypoints, then re-plan (the Main keeps moving).
 					for i = 2, math.min(#waypoints, 5) do
 						if followId ~= myId then
 							break
@@ -497,14 +472,12 @@ local function startFollow(targetName, baseDistance, mode)
 						connection:Disconnect()
 					end
 				else
-					-- No path found: head straight at the Main as a fallback.
 					humanoid:MoveTo(targetRoot.Position)
 				end
 			end
 			task.wait(mode == "pf" and 0.25 or 0.15)
 		end
 
-		-- Ended (not replaced by a newer follow): stand still.
 		if followId == myId then
 			followingName = nil
 			local humanoid = getHumanoid()
@@ -525,8 +498,6 @@ local function hasAnyMain()
 	return false
 end
 
--- !setalts a b c : sender becomes Main, listed names become Alts.
--- Accepted only if no Main is set yet (first claim) or sender is already the Main.
 local function applySetAlts(senderName, args)
 	if hasAnyMain() and not hasRole(senderName, "Main") then
 		return
@@ -552,7 +523,6 @@ local function handleMessage(senderName, text)
 	end
 	local name = (table.remove(args, 1) or ""):lower()
 
-	-- Runs on every client, including the sender's own.
 	if name == "setalts" then
 		applySetAlts(senderName, args)
 		return
@@ -577,14 +547,11 @@ local function handleMessage(senderName, text)
 	if name == "stoploop" then
 		loopId += 1
 	elseif name == "loop" then
-		-- !loop <seconds> <command> [args...]   (minimum 2s)
 		local interval = tonumber(table.remove(args, 1))
 		local rawName = table.remove(args, 1)
 		if interval and rawName then
 			local command = commands[rawName:lower()]
 			if not command then
-				-- Not a built-in command: chat it exactly as typed so the game's own
-				-- command handling (e.g. donate) picks it up.
 				local fullText = rawName .. (#args > 0 and (" " .. table.concat(args, " ")) or "")
 				command = function()
 					say(fullText)
@@ -626,12 +593,6 @@ else
 	Players.PlayerAdded:Connect(hook)
 end
 
--- ============================================================
--- Say box (press the Say button or hit Enter in the box):
---   * If this account is listed as a Main, it chats "!say <text>",
---     so every Alt (with Command Toggle ON) says <text>.
---   * Otherwise it just sends <text> as a normal chat message.
--- ============================================================
 local function sendSayBox()
 	local text = sayInput.Text:match("^%s*(.-)%s*$")
 	if text == "" then
@@ -656,10 +617,6 @@ sayInput.FocusLost:Connect(function(enterPressed)
 	end
 end)
 
--- ============================================================
--- Loop controls: send !loop / !stoploop (alts act on them if this
--- account is the Main and their toggle is ON; min interval 2s).
--- ============================================================
 startLoopButton.Activated:Connect(function()
 	local seconds = tonumber(loopSeconds.Text)
 	local command = loopCommand.Text:match("^%s*(.-)%s*$")
@@ -672,9 +629,6 @@ stopLoopButton.Activated:Connect(function()
 	say(PREFIX .. "stoploop")
 end)
 
--- ============================================================
--- Header: collapse button + tabs (Manager / FAQ)
--- ============================================================
 title.ZIndex = 2
 title.Text = "  Cortege"
 title.TextXAlignment = Enum.TextXAlignment.Left
@@ -702,7 +656,7 @@ tabBar.Parent = frame
 
 local tabLayout = Instance.new("UIListLayout")
 tabLayout.FillDirection = Enum.FillDirection.Horizontal
-tabLayout.Padding = UDim.new(0, 4)
+tabLayout.Padding = UDim.new(0, 3)
 tabLayout.Parent = tabBar
 
 local tabPadding = Instance.new("UIPadding")
@@ -711,21 +665,23 @@ tabPadding.PaddingTop = UDim.new(0, 3)
 tabPadding.Parent = tabBar
 
 local tabButtons = {}
-for _, tabName in ipairs({ "Manager", "Actions", "Ping", "Move", "FAQ" }) do
+for _, tabName in ipairs({ "Manager", "Actions", "Ping", "Move", "FAQ", "Settings" }) do
 	local tab = Instance.new("TextButton")
-	tab.Size = UDim2.fromOffset(64, 26)
+	tab.Size = UDim2.fromOffset(54, 26)
 	tab.BorderSizePixel = 0
 	tab.Text = tabName
 	tab.TextColor3 = Color3.new(1, 1, 1)
 	tab.Font = Enum.Font.GothamBold
-	tab.TextSize = 12
+	tab.TextScaled = true
+	local textLimit = Instance.new("UITextSizeConstraint")
+	textLimit.MaxTextSize = 12
+	textLimit.Parent = tab
 	tab.ZIndex = 3
 	tab.Parent = tabBar
 	round(tab)
 	tabButtons[tabName] = tab
 end
 
--- FAQ page
 local faqPage = Instance.new("ScrollingFrame")
 faqPage.Position = UDim2.fromOffset(10, 82)
 faqPage.Size = UDim2.new(1, -20, 1, -116)
@@ -778,9 +734,6 @@ faq("Toggle", "Command Toggle ON on the alts. Or Main chats !on.")
 faq("Commands", "!jump  !sit  !speed n  !stop  !say text\n!spin [n]  !unspin  !wave  !dance  !cheer  !laugh  !point\n!follow [mode] [studs]  !unfollow  !ping on/off\nModes: pf direct orbit line circle vee grid wall\n!loop secs cmd  !stoploop")
 faq("Not working?", "Toggle off, wrong or missing names, or old script on the alt.")
 
--- ============================================================
--- Ping tab: periodic movement / click so the account stays active
--- ============================================================
 local VirtualUser = game:GetService("VirtualUser")
 
 local pingPage = Instance.new("Frame")
@@ -868,7 +821,7 @@ end
 
 setPing = function(value)
 	if value and hasRole(player.Name, "Main") then
-		return -- the Main never pings itself, it only tells the Alts
+		return
 	end
 	pingEnabled = value
 	pingId += 1
@@ -886,7 +839,6 @@ setPing = function(value)
 	end
 end
 
--- Also answer Roblox's own idle signal while Ping is on.
 player.Idled:Connect(function()
 	if pingEnabled then
 		VirtualUser:CaptureController()
@@ -908,9 +860,6 @@ pingToggle.Activated:Connect(function()
 	end
 end)
 
--- ============================================================
--- Follow tab
--- ============================================================
 local followPage = Instance.new("Frame")
 followPage.Position = UDim2.fromOffset(0, 72)
 followPage.Size = UDim2.new(1, 0, 1, -72)
@@ -1032,9 +981,6 @@ stopFollowButton.Activated:Connect(function()
 	end
 end)
 
--- ============================================================
--- Actions tab: say box, one-tap commands, loop controls
--- ============================================================
 local actionsPage = Instance.new("Frame")
 actionsPage.Position = UDim2.fromOffset(0, 72)
 actionsPage.Size = UDim2.new(1, 0, 1, -72)
@@ -1090,7 +1036,45 @@ startLoopButton.Position = UDim2.fromOffset(10, 218)
 stopLoopButton.Parent = actionsPage
 stopLoopButton.Position = UDim2.new(0.5, 5, 0, 218)
 
--- Tab switching + collapse
+local settingsPage = Instance.new("Frame")
+settingsPage.Position = UDim2.fromOffset(0, 72)
+settingsPage.Size = UDim2.new(1, 0, 1, -72)
+settingsPage.BackgroundTransparency = 1
+settingsPage.BorderSizePixel = 0
+settingsPage.Visible = false
+settingsPage.Parent = frame
+
+local function settingsLabel(text, y, isHeading)
+	local label = Instance.new("TextLabel")
+	label.Position = UDim2.fromOffset(10, y)
+	label.Size = UDim2.new(1, -20, 0, 22)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Font = isHeading and Enum.Font.GothamBold or Enum.Font.Gotham
+	label.TextSize = isHeading and 14 or 13
+	label.TextColor3 = isHeading and Color3.fromRGB(130, 175, 255) or Color3.fromRGB(205, 205, 210)
+	label.Parent = settingsPage
+end
+
+settingsLabel("Credits", 12, true)
+settingsLabel("Made by stealthcrypter", 38, false)
+settingsLabel("GitHub", 68, false)
+
+local githubBox = Instance.new("TextBox")
+githubBox.Position = UDim2.fromOffset(10, 92)
+githubBox.Size = UDim2.new(1, -20, 0, 32)
+githubBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
+githubBox.BorderSizePixel = 0
+githubBox.Text = "https://github.com/stealthcrypter"
+githubBox.TextColor3 = Color3.fromRGB(130, 175, 255)
+githubBox.Font = Enum.Font.Gotham
+githubBox.TextSize = 13
+githubBox.TextEditable = false
+githubBox.ClearTextOnFocus = false
+githubBox.Parent = settingsPage
+round(githubBox)
+
 local activeTab = "Manager"
 local expanded = true
 local fullSize = frame.Size
@@ -1105,6 +1089,7 @@ local function applyView()
 		pingPage.Visible = visible and activeTab == "Ping"
 		followPage.Visible = visible and activeTab == "Move"
 		faqPage.Visible = visible and activeTab == "FAQ"
+		settingsPage.Visible = visible and activeTab == "Settings"
 		for _, listener in ipairs(viewListeners) do
 			listener(visible)
 		end
@@ -1119,10 +1104,10 @@ local function applyView()
 		Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40),
 	})
 	if expanded then
-		showPages(true) -- show first, then grow
+		showPages(true)
 		tween:Play()
 	else
-		tween:Play() -- shrink first, then hide
+		tween:Play()
 		tween.Completed:Connect(function()
 			if not expanded then
 				showPages(false)
@@ -1155,10 +1140,6 @@ end)
 
 applyView()
 
--- ============================================================
--- Visual polish: darker palette, border, accent line, hover and
--- focus effects, live status footer
--- ============================================================
 local ACCENT = Color3.fromRGB(88, 101, 242)
 local PANEL = Color3.fromRGB(32, 32, 38)
 
@@ -1206,7 +1187,6 @@ for _, inst in ipairs(frame:GetDescendants()) do
 	polish(inst)
 end
 
--- Footer: live status
 local footer = Instance.new("TextLabel")
 footer.Position = UDim2.new(0, 0, 1, -24)
 footer.Size = UDim2.new(1, 0, 0, 24)
@@ -1262,9 +1242,6 @@ task.spawn(function()
 	end
 end)
 
--- ============================================================
--- Glass look: translucent panels, buttons and boxes
--- ============================================================
 local function setBase(inst, value)
 	inst:SetAttribute("BaseT", value)
 	inst.BackgroundTransparency = value
