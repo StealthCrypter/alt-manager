@@ -39,7 +39,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 40)
 title.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
 title.BorderSizePixel = 0
-title.Text = "Alt Manager"
+title.Text = "Cortege"
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
@@ -602,7 +602,7 @@ end)
 -- Header: collapse button + tabs (Manager / FAQ)
 -- ============================================================
 title.ZIndex = 2
-title.Text = "  Alt Manager"
+title.Text = "  Cortege"
 title.TextXAlignment = Enum.TextXAlignment.Left
 
 local collapseButton = Instance.new("TextButton")
@@ -637,7 +637,7 @@ tabPadding.PaddingTop = UDim.new(0, 3)
 tabPadding.Parent = tabBar
 
 local tabButtons = {}
-for _, tabName in ipairs({ "Manager", "Ping", "Cortege", "FAQ" }) do
+for _, tabName in ipairs({ "Manager", "Ping", "Move", "FAQ" }) do
 	local tab = Instance.new("TextButton")
 	tab.Size = UDim2.fromOffset(80, 26)
 	tab.BorderSizePixel = 0
@@ -932,7 +932,7 @@ local function applyView()
 	managerPage.Visible = expanded and activeTab == "Manager"
 	faqPage.Visible = expanded and activeTab == "FAQ"
 	pingPage.Visible = expanded and activeTab == "Ping"
-	followPage.Visible = expanded and activeTab == "Cortege"
+	followPage.Visible = expanded and activeTab == "Move"
 	TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {
 		Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40),
 	}):Play()
