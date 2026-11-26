@@ -1095,19 +1095,39 @@ local activeTab = "Manager"
 local expanded = true
 local fullSize = frame.Size
 
+local viewListeners = {}
+
 local function applyView()
-	tabBar.Visible = expanded
-	managerPage.Visible = expanded and activeTab == "Manager"
-	faqPage.Visible = expanded and activeTab == "FAQ"
-	pingPage.Visible = expanded and activeTab == "Ping"
-	actionsPage.Visible = expanded and activeTab == "Actions"
-	followPage.Visible = expanded and activeTab == "Move"
-	TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {
-		Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40),
-	}):Play()
+	local function showPages(visible)
+		tabBar.Visible = visible
+		managerPage.Visible = visible and activeTab == "Manager"
+		actionsPage.Visible = visible and activeTab == "Actions"
+		pingPage.Visible = visible and activeTab == "Ping"
+		followPage.Visible = visible and activeTab == "Move"
+		faqPage.Visible = visible and activeTab == "FAQ"
+		for _, listener in ipairs(viewListeners) do
+			listener(visible)
+		end
+	end
+
 	collapseButton.Text = expanded and "-" or "+"
 	for name, tab in pairs(tabButtons) do
 		tab.BackgroundColor3 = name == activeTab and Color3.fromRGB(75, 110, 170) or Color3.fromRGB(55, 55, 63)
+	end
+
+	local tween = TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40),
+	})
+	if expanded then
+		showPages(true) -- show first, then grow
+		tween:Play()
+	else
+		tween:Play() -- shrink first, then hide
+		tween.Completed:Connect(function()
+			if not expanded then
+				showPages(false)
+			end
+		end)
 	end
 end
 
@@ -1121,6 +1141,16 @@ end
 collapseButton.Activated:Connect(function()
 	expanded = not expanded
 	applyView()
+end)
+
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+	if processed or destroyed then
+		return
+	end
+	if input.KeyCode == Enum.KeyCode.RightShift then
+		expanded = not expanded
+		applyView()
+	end
 end)
 
 applyView()
@@ -1191,6 +1221,9 @@ footer.Parent = frame
 local footerPad = Instance.new("UIPadding")
 footerPad.PaddingLeft = UDim.new(0, 10)
 footerPad.Parent = footer
+table.insert(viewListeners, function(visible)
+	footer.Visible = visible
+end)
 
 task.spawn(function()
 	while not destroyed do
@@ -1217,6 +1250,12 @@ task.spawn(function()
 			followStatus.Text = "Main"
 		else
 			followStatus.Text = followingName and (followingMode .. ": " .. followingName) or "Idle"
+		end
+
+		if expanded then
+			title.Text = "  Cortege"
+		else
+			title.Text = ("  Cortege   %s  %dM %dA"):format(commandEnabled and "ON" or "OFF", mains, alts)
 		end
 
 		task.wait(0.5)
