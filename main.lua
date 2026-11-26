@@ -171,6 +171,7 @@ local function refresh()
 			entry.LayoutOrder = index
 			entry.Parent = accountList
 			round(entry, 4)
+			entry.BackgroundTransparency = 0.3
 
 			entry.Activated:Connect(function()
 				selectedIndex = index
@@ -330,6 +331,8 @@ end
 local PathfindingService = game:GetService("PathfindingService")
 local followId = 0
 local followingName
+local followingMode
+local FOLLOW_MODES = { pf = true, direct = true, orbit = true, line = true }
 
 local function altIndex()
 	local index = 0
@@ -344,12 +347,25 @@ local function altIndex()
 	return 1
 end
 
-local function startFollow(targetName, baseDistance)
+local function altCount()
+	local count = 0
+	for _, account in ipairs(accounts) do
+		if account.Role == "Alt" then
+			count += 1
+		end
+	end
+	return math.max(count, 1)
+end
+
+local function startFollow(targetName, baseDistance, mode)
+	mode = FOLLOW_MODES[mode] and mode or "pf"
 	followId += 1
 	local myId = followId
 	followingName = targetName
+	followingMode = mode
+	local baseGap = math.clamp(baseDistance or 6, 3, 50)
 	-- Each alt keeps a slightly different distance so they don't all stack up.
-	local stopDistance = math.clamp(baseDistance or 6, 3, 50) + 2 * (altIndex() - 1)
+	local stopDistance = baseGap + 2 * (altIndex() - 1)
 
 	task.spawn(function()
 		local path = PathfindingService:CreatePath({
@@ -364,7 +380,19 @@ local function startFollow(targetName, baseDistance)
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			local targetRoot = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
 
-			if humanoid and root and targetRoot and humanoid.Health > 0
+			if humanoid and root and targetRoot and humanoid.Health > 0 and mode ~= "pf" then
+				local index = altIndex()
+				if mode == "direct" then
+					if (targetRoot.Position - root.Position).Magnitude > stopDistance then
+						humanoid:MoveTo(targetRoot.Position)
+					end
+				elseif mode == "orbit" then
+					local angle = os.clock() * 0.8 + (index - 1) * (math.pi * 2 / altCount())
+					humanoid:MoveTo(targetRoot.Position + Vector3.new(math.cos(angle), 0, math.sin(angle)) * baseGap)
+				elseif mode == "line" then
+					humanoid:MoveTo(targetRoot.Position - targetRoot.CFrame.LookVector * (baseGap * index))
+				end
+			elseif humanoid and root and targetRoot and humanoid.Health > 0
 				and (targetRoot.Position - root.Position).Magnitude > stopDistance then
 				local ok = pcall(function()
 					path:ComputeAsync(root.Position, targetRoot.Position)
@@ -399,7 +427,7 @@ local function startFollow(targetName, baseDistance)
 					humanoid:MoveTo(targetRoot.Position)
 				end
 			end
-			task.wait(0.25)
+			task.wait(mode == "pf" and 0.25 or 0.15)
 		end
 
 		-- Ended (not replaced by a newer follow): stand still.
@@ -491,7 +519,9 @@ local function handleMessage(senderName, text)
 			startLoop(math.max(interval, 2), command, args)
 		end
 	elseif name == "follow" then
-		startFollow(senderName, tonumber(args[1]))
+		local modeArg = args[1] and args[1]:lower()
+		local mode = FOLLOW_MODES[modeArg] and modeArg or nil
+		startFollow(senderName, tonumber(mode and args[2] or args[1]), mode)
 	elseif name == "unfollow" then
 		followId += 1
 		followingName = nil
@@ -607,7 +637,7 @@ tabPadding.PaddingTop = UDim.new(0, 3)
 tabPadding.Parent = tabBar
 
 local tabButtons = {}
-for _, tabName in ipairs({ "Manager", "Ping", "Follow", "FAQ" }) do
+for _, tabName in ipairs({ "Manager", "Ping", "Cortege", "FAQ" }) do
 	local tab = Instance.new("TextButton")
 	tab.Size = UDim2.fromOffset(80, 26)
 	tab.BorderSizePixel = 0
@@ -671,7 +701,7 @@ end
 
 faq("Setup", "Run on every account. Main chats !setalts alt1 alt2, or add usernames by hand.")
 faq("Toggle", "Command Toggle ON on the alts. Or Main chats !on.")
-faq("Commands", "!jump  !sit  !speed n  !stop  !say text\n!follow [studs]  !unfollow  !ping on/off\n!loop secs cmd  !stoploop")
+faq("Commands", "!jump  !sit  !speed n  !stop  !say text\n!follow [pf|direct|orbit|line] [studs]  !unfollow  !ping on/off\n!loop secs cmd  !stoploop")
 faq("Not working?", "Toggle off, wrong or missing names, or old script on the alt.")
 
 -- ============================================================
@@ -845,11 +875,21 @@ local function followButton(text, y, color)
 	return button
 end
 
-local startFollowButton = followButton("Start Follow", 54, Color3.fromRGB(65, 125, 75))
-local stopFollowButton = followButton("Stop Follow", 96, Color3.fromRGB(110, 65, 65))
+local followModes = { "pf", "direct", "orbit", "line" }
+local followModeLabels = { pf = "PF", direct = "Direct", orbit = "Orbit", line = "Line" }
+local followMode = "pf"
+local modeButton = followButton("Mode: PF", 54, Color3.fromRGB(75, 110, 170))
+modeButton.Activated:Connect(function()
+	local index = table.find(followModes, followMode) or 1
+	followMode = followModes[index % #followModes + 1]
+	modeButton.Text = "Mode: " .. followModeLabels[followMode]
+end)
+
+local startFollowButton = followButton("Start", 96, Color3.fromRGB(65, 125, 75))
+local stopFollowButton = followButton("Stop", 138, Color3.fromRGB(110, 65, 65))
 
 local followStatus = Instance.new("TextLabel")
-followStatus.Position = UDim2.fromOffset(10, 140)
+followStatus.Position = UDim2.fromOffset(10, 182)
 followStatus.Size = UDim2.new(1, -20, 0, 24)
 followStatus.BackgroundTransparency = 1
 followStatus.TextXAlignment = Enum.TextXAlignment.Left
@@ -862,11 +902,11 @@ followStatus.Parent = followPage
 startFollowButton.Activated:Connect(function()
 	local distance = tonumber(followDistance.Text) or 6
 	if hasRole(player.Name, "Main") then
-		say(PREFIX .. "follow " .. distance)
+		say(PREFIX .. "follow " .. followMode .. " " .. distance)
 	else
 		for _, account in ipairs(accounts) do
 			if account.Role == "Main" then
-				startFollow(account.Name, distance)
+				startFollow(account.Name, distance, followMode)
 				break
 			end
 		end
@@ -892,7 +932,7 @@ local function applyView()
 	managerPage.Visible = expanded and activeTab == "Manager"
 	faqPage.Visible = expanded and activeTab == "FAQ"
 	pingPage.Visible = expanded and activeTab == "Ping"
-	followPage.Visible = expanded and activeTab == "Follow"
+	followPage.Visible = expanded and activeTab == "Cortege"
 	TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {
 		Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40),
 	}):Play()
@@ -956,10 +996,10 @@ local function polish(inst)
 	elseif inst:IsA("TextButton") then
 		inst.AutoButtonColor = false
 		inst.MouseEnter:Connect(function()
-			TweenService:Create(inst, TweenInfo.new(0.12), { BackgroundTransparency = 0.2 }):Play()
+			TweenService:Create(inst, TweenInfo.new(0.12), { BackgroundTransparency = math.max((inst:GetAttribute("BaseT") or 0) - 0.2, 0) }):Play()
 		end)
 		inst.MouseLeave:Connect(function()
-			TweenService:Create(inst, TweenInfo.new(0.12), { BackgroundTransparency = 0 }):Play()
+			TweenService:Create(inst, TweenInfo.new(0.12), { BackgroundTransparency = inst:GetAttribute("BaseT") or 0 }):Play()
 		end)
 	end
 end
@@ -1007,9 +1047,36 @@ task.spawn(function()
 		if hasRole(player.Name, "Main") then
 			followStatus.Text = "Main"
 		else
-			followStatus.Text = followingName and (followingName) or "Idle"
+			followStatus.Text = followingName and (followingMode .. ": " .. followingName) or "Idle"
 		end
 
 		task.wait(0.5)
 	end
 end)
+
+-- ============================================================
+-- Glass look: translucent panels, buttons and boxes
+-- ============================================================
+local function setBase(inst, value)
+	inst:SetAttribute("BaseT", value)
+	inst.BackgroundTransparency = value
+end
+
+frame.BackgroundTransparency = 0.2
+frameStroke.Transparency = 0.3
+
+for _, inst in ipairs(frame:GetDescendants()) do
+	if inst:IsA("TextButton") then
+		setBase(inst, 0.25)
+	elseif inst:IsA("TextBox") then
+		setBase(inst, 0.4)
+	elseif inst:IsA("ScrollingFrame") then
+		setBase(inst, 0.5)
+	elseif inst:IsA("UIStroke") and inst.Parent:IsA("TextBox") then
+		inst.Transparency = 0.5
+	end
+end
+
+for _, inst in ipairs({ title, tabBar, footer }) do
+	setBase(inst, 0.35)
+end
