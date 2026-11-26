@@ -324,6 +324,93 @@ local function startLoop(interval, command, args)
 	end)
 end
 
+-- ============================================================
+-- !follow / !unfollow: alts pathfind after the Main (client-side)
+-- ============================================================
+local PathfindingService = game:GetService("PathfindingService")
+local followId = 0
+
+local function altIndex()
+	local index = 0
+	for _, account in ipairs(accounts) do
+		if account.Role == "Alt" then
+			index += 1
+			if account.Name:lower() == player.Name:lower() then
+				return index
+			end
+		end
+	end
+	return 1
+end
+
+local function startFollow(targetName)
+	followId += 1
+	local myId = followId
+	-- Each alt keeps a slightly different distance so they don't all stack up.
+	local stopDistance = 6 + 2 * (altIndex() - 1)
+
+	task.spawn(function()
+		local path = PathfindingService:CreatePath({
+			AgentRadius = 2,
+			AgentHeight = 5,
+			AgentCanJump = true,
+		})
+
+		while followId == myId and commandEnabled and not destroyed and hasRole(player.Name, "Alt") do
+			local target = Players:FindFirstChild(targetName)
+			local humanoid = getHumanoid()
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			local targetRoot = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+
+			if humanoid and root and targetRoot and humanoid.Health > 0
+				and (targetRoot.Position - root.Position).Magnitude > stopDistance then
+				local ok = pcall(function()
+					path:ComputeAsync(root.Position, targetRoot.Position)
+				end)
+
+				if ok and path.Status == Enum.PathStatus.Success then
+					local waypoints = path:GetWaypoints()
+					-- Walk the next few waypoints, then re-plan (the Main keeps moving).
+					for i = 2, math.min(#waypoints, 5) do
+						if followId ~= myId then
+							break
+						end
+						local waypoint = waypoints[i]
+						if waypoint.Action == Enum.PathWaypointAction.Jump then
+							humanoid.Jump = true
+						end
+						humanoid:MoveTo(waypoint.Position)
+
+						local reached = false
+						local connection = humanoid.MoveToFinished:Connect(function()
+							reached = true
+						end)
+						local waited = 0
+						while not reached and waited < 1.5 and followId == myId do
+							task.wait(0.1)
+							waited += 0.1
+						end
+						connection:Disconnect()
+					end
+				else
+					-- No path found: head straight at the Main as a fallback.
+					humanoid:MoveTo(targetRoot.Position)
+				end
+			end
+			task.wait(0.25)
+		end
+
+		-- Ended (not replaced by a newer follow): stand still.
+		if followId == myId then
+			local humanoid = getHumanoid()
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if humanoid and root then
+				humanoid:MoveTo(root.Position)
+			end
+		end
+	end)
+end
+
 local function hasAnyMain()
 	for _, account in ipairs(accounts) do
 		if account.Role == "Main" then
@@ -400,6 +487,10 @@ local function handleMessage(senderName, text)
 			end
 			startLoop(math.max(interval, 2), command, args)
 		end
+	elseif name == "follow" then
+		startFollow(senderName)
+	elseif name == "unfollow" then
+		followId += 1
 	elseif commands[name] then
 		commands[name](args)
 	end
@@ -581,7 +672,7 @@ faq("Command Toggle",
 faq("Lists are per account",
 	"Each client keeps its own list. The Alt's list must contain the Main (as Main) and itself (as Alt), or it ignores commands. Lists are not saved, so they reset when you rejoin.")
 faq("Commands",
-	"!jump  !sit  !speed 32  !stop  !say hello\nOnly the Main can send them, and only Alts run them.")
+	"!jump  !sit  !speed 32  !stop  !say hello\n!follow (alts pathfind after the Main)  !unfollow  !ping on/off\nOnly the Main can send them, and only Alts run them.")
 faq("Say box",
 	"On the Main it makes every Alt say your text. On any other account it sends a normal chat message. Anything starting with ! is sent as typed.")
 faq("Loops",
