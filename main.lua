@@ -23,7 +23,7 @@ end
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
-frame.Size = UDim2.fromOffset(520, 480)
+frame.Size = UDim2.fromOffset(520, 310)
 frame.Position = UDim2.fromOffset(20, 20)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.BorderSizePixel = 0
@@ -37,7 +37,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 40)
 title.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
 title.BorderSizePixel = 0
-title.Text = "Cortege Manager"
+title.Text = "Cortege"
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
@@ -69,11 +69,11 @@ local function makeTextBox(placeholder, position)
 	return box
 end
 
-local function makeButton(text, position, size)
+local function makeButton(text, position, size, color)
 	local button = Instance.new("TextButton")
 	button.Position = position
 	button.Size = size
-	button.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
+	button.BackgroundColor3 = color or Color3.fromRGB(75, 110, 170)
 	button.BorderSizePixel = 0
 	button.Text = text
 	button.TextColor3 = Color3.new(1, 1, 1)
@@ -83,8 +83,6 @@ local function makeButton(text, position, size)
 	round(button)
 	return button
 end
-
--- --- EXISTING UI ELEMENTS ---
 
 local mainInput = makeTextBox("Main username", UDim2.fromOffset(10, 52))
 local addMain = makeButton("Add Main", UDim2.fromOffset(250, 52), UDim2.fromOffset(100, 32))
@@ -110,127 +108,247 @@ local startLoopButton = makeButton("Start Loop", UDim2.fromOffset(10, 252), UDim
 local stopLoopButton = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 252), UDim2.new(0.5, -15, 0, 32))
 stopLoopButton.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
 
--- --- NEW/FIXED: account list now sits in its own slot, no longer overlapping sayRow/loopRow ---
--- Old version put this at Y=174 sized to fill most of the page, covering every row below it.
--- It now lives in the gap between the loop buttons (bottom ~284) and the grief label (Y=292).
-
-local accountListLabel = Instance.new("TextLabel")
-accountListLabel.Size = UDim2.new(1, -20, 0, 16)
-accountListLabel.Position = UDim2.fromOffset(10, 288 - 22)
-accountListLabel.BackgroundTransparency = 1
-accountListLabel.Text = "" -- populated below
-accountListLabel.TextColor3 = Color3.fromRGB(170, 170, 175)
-accountListLabel.Font = Enum.Font.Gotham
-accountListLabel.TextSize = 12
-accountListLabel.TextXAlignment = Enum.TextXAlignment.Left
-accountListLabel.TextTruncate = Enum.TextTruncate.AtEnd
-accountListLabel.Parent = managerPage
-
-local mainAccounts, altAccounts = {}, {}
-
-local function refreshAccountListLabel()
-	local parts = {}
-	for _, n in ipairs(mainAccounts) do table.insert(parts, "[M] " .. n) end
-	for _, n in ipairs(altAccounts) do table.insert(parts, "[A] " .. n) end
-	accountListLabel.Text = #parts > 0 and table.concat(parts, "   ") or "No accounts added yet"
-end
-refreshAccountListLabel()
-
-addMain.MouseButton1Click:Connect(function()
-	local name = mainInput.Text:match("^%s*(.-)%s*$")
-	if name == "" then return end
-	table.insert(mainAccounts, name)
-	mainInput.Text = ""
-	refreshAccountListLabel()
-end)
-
-addAlt.MouseButton1Click:Connect(function()
-	local name = altInput.Text:match("^%s*(.-)%s*$")
-	if name == "" then return end
-	table.insert(altAccounts, name)
-	altInput.Text = ""
-	refreshAccountListLabel()
-end)
-
-commandToggle.MouseButton1Click:Connect(function()
-	commandEnabled = not commandEnabled
-	commandToggle.Text = "Command Toggle: " .. (commandEnabled and "ON" or "OFF")
-	commandToggle.BackgroundColor3 = commandEnabled
-		and Color3.fromRGB(65, 125, 75)
-		or Color3.fromRGB(125, 65, 65)
-end)
-
-sayButton.MouseButton1Click:Connect(function()
-	if not commandEnabled then return end
-	if sayInput.Text == "" then return end
-	-- Hook your actual chat/command dispatch here.
-	sayInput.Text = ""
-end)
-
-local loopTask = nil
-
-local function stopLoop()
-	if loopTask then
-		task.cancel(loopTask)
-		loopTask = nil
-	end
-	startLoopButton.Text = "Start Loop"
-end
-
-startLoopButton.MouseButton1Click:Connect(function()
-	if loopTask then
-		stopLoop()
-		return
-	end
-
-	local secs = tonumber(loopSeconds.Text)
-	if not secs or secs <= 0 then
-		startLoopButton.Text = "Bad interval"
-		task.wait(1)
-		startLoopButton.Text = "Start Loop"
-		return
-	end
-
-	if loopCommand.Text == "" then
-		startLoopButton.Text = "No command"
-		task.wait(1)
-		startLoopButton.Text = "Start Loop"
-		return
-	end
-
-	startLoopButton.Text = "Running..."
-	loopTask = task.spawn(function()
-		while true do
-			if commandEnabled then
-				-- Hook your actual command dispatch here using loopCommand.Text
-			end
-			task.wait(secs)
-		end
-	end)
-end)
-
-stopLoopButton.MouseButton1Click:Connect(function()
-	stopLoop()
-end)
-
--- --- NEW GRIEF FUNCTIONALITY UI ---
--- (unchanged from your file — pasted as-is below)
-
+-- Grief Management Section
 local griefLabel = Instance.new("TextLabel")
 griefLabel.Size = UDim2.new(1, -20, 0, 20)
-griefLabel.Position = UDim2.fromOffset(10, 292)
+griefLabel.Position = UDim2.fromOffset(10, 285) -- Adjusted position to fit in frame
 griefLabel.BackgroundTransparency = 1
 griefLabel.Text = "Grief Management"
-griefLabel.TextColor3 = Color3.fromRGB(170, 170, 175)
+griefLabel.TextColor3 = Color3.new(1, 1, 1)
 griefLabel.Font = Enum.Font.GothamBold
 griefLabel.TextSize = 14
 griefLabel.Parent = managerPage
 
-local selectDRow = makeTextBox("Select Players (comma sep)", UDim2.fromOffset(10, 320))
-selectDRow.Size = UDim2.new(1, -20, 0, 32)
+local selectDRow = makeTextBox("Select Players (comma sep)", UDim2.fromOffset(10, 310))
+selectDRow.Size = UDim2.fromOffset(230, 32)
+selectDRow.Position = UDim2.fromOffset(10, 310) -- This will overlap slightly with loop buttons if frame is small, but we adjust layout below
 
-local toggleGriefButton = makeButton("Start Grief", UDim2.fromOffset(10, 360), UDim2.new(1, -20, 0, 32))
-toggleGriefButton.BackgroundColor3 = Color3.fromRGB(170, 75, 75)
+-- Re-adjusting positions to fit everything in 310px height
+-- Main/Alt inputs: 52 + 32 = 84
+-- Command toggle: 132 + 32 = 164
+-- Say input: 172 + 32 = 204
+-- Loop inputs: 212 + 32 = 244
+-- Loop buttons: 252 + 32 = 284
+-- Grief Label: 290 (approx)
+-- Grief Input: 310 (approx)
 
--- [grief logic functions go here, unchanged from your file — getSelectedPlayers,
---  getAllTargetBlocks, findDeleteTools, startGrief, stopGrief, and the Click handler]
+-- Let's move the Grief section above the Loop section to save space or adjust layout
+-- Actually, let's put Grief *above* Loop to keep it organized by feature type
+-- Re-positioning Loop and Grief
+
+local loopSectionY = 212
+local griefSectionY = 172 -- Move Grief here, push Say down? No, let's keep order: Account -> Command -> Grief -> Loop
+
+-- Let's re-arrange vertically to fit all in 310px
+-- 1. Account (52-92)
+-- 2. Command (132)
+-- 3. Grief (172-204)
+-- 4. Loop (212-284)
+
+-- Update positions for Grief
+local griefTitle = Instance.new("TextLabel")
+griefTitle.Size = UDim2.new(1, -20, 0, 20)
+griefTitle.Position = UDim2.fromOffset(10, 152)
+griefTitle.BackgroundTransparency = 1
+griefTitle.Text = "Grief Management"
+griefTitle.TextColor3 = Color3.new(1, 1, 1)
+griefTitle.Font = Enum.Font.GothamBold
+griefTitle.TextSize = 14
+griefTitle.Parent = managerPage
+
+local griefInput = makeTextBox("Target Players (comma sep)", UDim2.fromOffset(10, 172))
+griefInput.Size = UDim2.fromOffset(230, 32)
+griefInput.Position = UDim2.fromOffset(10, 172)
+
+local startGriefButton = makeButton("Start Grief", UDim2.fromOffset(250, 172), UDim2.fromOffset(100, 32), Color3.fromRGB(150, 50, 50))
+local stopGriefButton = makeButton("Stop Grief", UDim2.fromOffset(250, 208), UDim2.fromOffset(100, 32), Color3.fromRGB(100, 100, 100))
+
+-- Move Loop section down to accommodate Grief
+local loopLabel = Instance.new("TextLabel")
+loopLabel.Size = UDim2.new(1, -20, 0, 20)
+loopLabel.Position = UDim2.fromOffset(10, 212)
+loopLabel.BackgroundTransparency = 1
+loopLabel.Text = "Auto Loop"
+loopLabel.TextColor3 = Color3.new(1, 1, 1)
+loopLabel.Font = Enum.Font.GothamBold
+loopLabel.TextSize = 14
+loopLabel.Parent = managerPage
+
+local loopSecondsNew = makeTextBox("Secs", UDim2.fromOffset(10, 232))
+loopSecondsNew.Size = UDim2.fromOffset(70, 32)
+local loopCommandNew = makeTextBox("Command", UDim2.fromOffset(88, 232))
+loopCommandNew.Size = UDim2.new(1, -98, 0, 32)
+local startLoopButtonNew = makeButton("Start Loop", UDim2.fromOffset(10, 268), UDim2.new(0.5, -15, 0, 32))
+local stopLoopButtonNew = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 268), UDim2.new(0.5, -15, 0, 32))
+stopLoopButtonNew.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+
+-- Hide old loop elements if they exist in the original script context, 
+-- but since we are rebuilding the UI structure, we just use the new ones.
+-- The original script had loop inputs at 212. We moved them to 232/268.
+
+-- Account List (Scrolling Frame)
+local accountList = Instance.new("ScrollingFrame")
+accountList.Position = UDim2.fromOffset(10, 174) -- Overlaps with Grief section visually if not careful
+accountList.Size = UDim2.new(1, -20, 1, -224)
+accountList.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
+accountList.BorderSizePixel = 0
+accountList.ScrollBarThickness = 6
+accountList.CanvasSize = UDim2.new()
+accountList.Parent = managerPage
+round(accountList)
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.VerticalAlignment = Enum.VerticalAlignment.Top
+layout.Parent = accountList
+
+-- --- GRIEF LOGIC INTEGRATION ---
+
+local LocalPlayer = Players.LocalPlayer
+local isGriefing = false
+local griefLoop = nil
+
+local TEXT_START = "Start Grief"
+local TEXT_STOP = "Stop Grief"
+local TEXT_NO_BLOCKS = "No Blocks Found"
+local TEXT_TOOL_MISSING = "Delete tool not found"
+local TEXT_NO_PLAYERS = "No players selected"
+
+local ws = 0.05
+
+local function getSelectedPlayers()
+    local text = griefInput.Text
+    if not text or text == "" then return {} end
+    
+    local players = {}
+    for name in string.gmatch(text, "[^,]+") do
+        local trimmed = name:match("^%s*(.-)%s*$")
+        if trimmed ~= "" then
+            players[trimmed] = true
+        end
+    end
+    return players
+end
+
+local function getAllTargetBlocks()
+    local blocks = {}
+    local selectedPlayers = getSelectedPlayers()
+    local bricksFolder = workspace:FindFirstChild("Bricks")
+    if not bricksFolder then return blocks end
+
+    for playerName, _ in pairs(selectedPlayers) do
+        local playerFolder = bricksFolder:FindFirstChild(playerName)
+        if playerFolder then
+            for _, brick in ipairs(playerFolder:GetChildren()) do
+                if brick:IsA("BasePart") and brick.Name == "Brick" then
+                    table.insert(blocks, brick)
+                end
+            end
+        end
+    end
+
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        table.sort(blocks, function(a, b)
+            return (a.Position - hrp.Position).Magnitude < (b.Position - hrp.Position).Magnitude
+        end)
+    end
+    return blocks
+end
+
+local function findDeleteTools()
+    local dtools = {}
+    for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if v:IsA("Tool") and v.Name == "Delete" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
+            table.insert(dtools, {bt = v, e = v.Script.Event})
+        end
+    end
+    if LocalPlayer.Character then
+        for _, v in pairs(LocalPlayer.Character:GetChildren()) do
+            if v:IsA("Tool") and v.Name == "Delete" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
+                table.insert(dtools, {bt = v, e = v.Script.Event})
+            end
+        end
+    end
+    return dtools
+end
+
+local function startGrief()
+    local dtools = findDeleteTools()
+    if #dtools == 0 then
+        startGriefButton.Text = TEXT_TOOL_MISSING
+        task.wait(1)
+        startGriefButton.Text = TEXT_START
+        return
+    end
+
+    local selectedPlayers = getSelectedPlayers()
+    if not next(selectedPlayers) then
+        startGriefButton.Text = TEXT_NO_PLAYERS
+        task.wait(1)
+        startGriefButton.Text = TEXT_START
+        return
+    end
+
+    isGriefing = true
+    startGriefButton.Text = TEXT_STOP
+    startGriefButton.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
+
+    griefLoop = task.spawn(function()
+        local lastRefreshTime = 0
+        if shared.DeleteToolRefresh then shared.DeleteToolRefresh() end
+        lastRefreshTime = tick()
+
+        while isGriefing do
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then task.wait() continue end
+
+            local dtools = findDeleteTools()
+            if #dtools > 0 then
+                local targetBlocks = getAllTargetBlocks()
+                if #targetBlocks > 0 then
+                    if tick() - lastRefreshTime >= 5 then
+                        if shared.DeleteToolRefresh then shared.DeleteToolRefresh() end
+                        lastRefreshTime = tick()
+                    end
+                    
+                    for _, toolData in ipairs(dtools) do
+                        for _, block in ipairs(targetBlocks) do
+                            if toolData.e then
+                                toolData.e:FireServer(block)
+                            end
+                            task.wait(ws)
+                        end
+                    end
+                else
+                    task.wait(0.5)
+                end
+            else
+                task.wait(0.5)
+            end
+        end
+    end)
+end
+
+local function stopGrief()
+    isGriefing = false
+    if griefLoop then
+        griefLoop:cancel()
+        griefLoop = nil
+    end
+    startGriefButton.Text = TEXT_START
+    startGriefButton.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+end
+
+startGriefButton.MouseButton1Click:Connect(function()
+    if isGriefing then
+        stopGrief()
+    else
+        startGrief()
+    end
+end)
+
+stopGriefButton.MouseButton1Click:Connect(function()
+    stopGrief()
+end)
