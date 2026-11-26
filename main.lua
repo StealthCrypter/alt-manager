@@ -89,13 +89,13 @@ local addMain = makeButton("Add Main", UDim2.fromOffset(250, 52), UDim2.fromOffs
 local altInput = makeTextBox("Alt username", UDim2.fromOffset(10, 92))
 local addAlt = makeButton("Add Alt", UDim2.fromOffset(250, 92), UDim2.fromOffset(100, 32))
 
-local commandEnabled = false
+local commandEnabled = true
 local commandToggle = makeButton(
-	"Command Toggle: OFF",
+	"Command Toggle: ON",
 	UDim2.fromOffset(10, 132),
 	UDim2.new(1, -20, 0, 32)
 )
-commandToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+commandToggle.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
 
 local sayInput = makeTextBox("Say", UDim2.fromOffset(10, 172))
 local sayButton = makeButton("Say", UDim2.fromOffset(250, 172), UDim2.fromOffset(100, 32))
@@ -738,7 +738,7 @@ local function faq(heading, body)
 end
 
 faq("Setup", "Run on every account. Main chats !setalts alt1 alt2, or add usernames by hand.")
-faq("Toggle", "Command Toggle ON on the alts. Or Main chats !on.")
+faq("Toggle", "Commands are ON by default. Turn the toggle OFF (or chat !off) to pause the alts.")
 faq("Commands", "!jump  !sit  !speed n  !stop  !say text\n!spin [n]  !unspin  !wave  !dance  !cheer  !laugh  !point\n!follow [mode] [studs]  !unfollow  !ping on/off\nModes: pf direct orbit line circle vee grid wall\n!loop secs cmd  !stoploop")
 faq("Not working?", "Toggle off, wrong or missing names, or old script on the alt.")
 
