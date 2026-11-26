@@ -246,7 +246,7 @@ local commands = {
 	jump = function()
 		local humanoid = getHumanoid()
 		if humanoid then
-			humanoid.Jump = true
+			humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 		end
 	end,
 
@@ -456,7 +456,7 @@ local function startFollow(targetName, baseDistance, mode)
 						end
 						local waypoint = waypoints[i]
 						if waypoint.Action == Enum.PathWaypointAction.Jump then
-							humanoid.Jump = true
+							humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 						end
 						humanoid:MoveTo(waypoint.Position)
 
@@ -646,36 +646,44 @@ collapseButton.ZIndex = 4
 collapseButton.Parent = frame
 round(collapseButton)
 
-local tabBar = Instance.new("Frame")
+local tabBar = Instance.new("ScrollingFrame")
 tabBar.Position = UDim2.fromOffset(0, 40)
 tabBar.Size = UDim2.new(1, 0, 0, 32)
 tabBar.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
 tabBar.BorderSizePixel = 0
 tabBar.ZIndex = 2
+tabBar.ScrollingDirection = Enum.ScrollingDirection.X
+tabBar.AutomaticCanvasSize = Enum.AutomaticSize.X
+tabBar.CanvasSize = UDim2.new()
+tabBar.ScrollBarThickness = 3
+tabBar.ScrollBarImageColor3 = Color3.fromRGB(88, 101, 242)
 tabBar.Parent = frame
 
 local tabLayout = Instance.new("UIListLayout")
 tabLayout.FillDirection = Enum.FillDirection.Horizontal
-tabLayout.Padding = UDim.new(0, 3)
+tabLayout.Padding = UDim.new(0, 6)
 tabLayout.Parent = tabBar
 
 local tabPadding = Instance.new("UIPadding")
 tabPadding.PaddingLeft = UDim.new(0, 10)
+tabPadding.PaddingRight = UDim.new(0, 10)
 tabPadding.PaddingTop = UDim.new(0, 3)
 tabPadding.Parent = tabBar
 
 local tabButtons = {}
-for _, tabName in ipairs({ "Manager", "Actions", "Ping", "Move", "FAQ", "Settings" }) do
+for _, tabName in ipairs({ "Manager", "Actions", "Ping", "Move", "Destruction", "FAQ", "Settings" }) do
 	local tab = Instance.new("TextButton")
-	tab.Size = UDim2.fromOffset(54, 26)
+	tab.Size = UDim2.fromOffset(0, 26)
 	tab.BorderSizePixel = 0
 	tab.Text = tabName
 	tab.TextColor3 = Color3.new(1, 1, 1)
 	tab.Font = Enum.Font.GothamBold
-	tab.TextScaled = true
-	local textLimit = Instance.new("UITextSizeConstraint")
-	textLimit.MaxTextSize = 12
-	textLimit.Parent = tab
+	tab.TextSize = 13
+	tab.AutomaticSize = Enum.AutomaticSize.X
+	local tabInset = Instance.new("UIPadding")
+	tabInset.PaddingLeft = UDim.new(0, 12)
+	tabInset.PaddingRight = UDim.new(0, 12)
+	tabInset.Parent = tab
 	tab.ZIndex = 3
 	tab.Parent = tabBar
 	round(tab)
@@ -810,7 +818,7 @@ local function pingOnce()
 		humanoid:MoveTo(root.Position + Vector3.new(math.cos(angle), 0, math.sin(angle)) * 8)
 	end
 	if pingOptions.Jump and humanoid then
-		humanoid.Jump = true
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 	if pingOptions.Click then
 		local viewport = workspace.CurrentCamera.ViewportSize
@@ -1075,6 +1083,14 @@ githubBox.ClearTextOnFocus = false
 githubBox.Parent = settingsPage
 round(githubBox)
 
+local destructionPage = Instance.new("Frame")
+destructionPage.Position = UDim2.fromOffset(0, 72)
+destructionPage.Size = UDim2.new(1, 0, 1, -72)
+destructionPage.BackgroundTransparency = 1
+destructionPage.BorderSizePixel = 0
+destructionPage.Visible = false
+destructionPage.Parent = frame
+
 local activeTab = "Manager"
 local expanded = true
 local fullSize = frame.Size
@@ -1090,6 +1106,7 @@ local function applyView()
 		followPage.Visible = visible and activeTab == "Move"
 		faqPage.Visible = visible and activeTab == "FAQ"
 		settingsPage.Visible = visible and activeTab == "Settings"
+		destructionPage.Visible = visible and activeTab == "Destruction"
 		for _, listener in ipairs(viewListeners) do
 			listener(visible)
 		end
@@ -1120,6 +1137,12 @@ for name, tab in pairs(tabButtons) do
 	tab.Activated:Connect(function()
 		activeTab = name
 		applyView()
+		local left = tab.AbsolutePosition.X - tabBar.AbsolutePosition.X + tabBar.CanvasPosition.X
+		local target = left - (tabBar.AbsoluteSize.X - tab.AbsoluteSize.X) / 2
+		local maxScroll = math.max(tabBar.AbsoluteCanvasSize.X - tabBar.AbsoluteSize.X, 0)
+		TweenService:Create(tabBar, TweenInfo.new(0.15), {
+			CanvasPosition = Vector2.new(math.clamp(target, 0, maxScroll), 0),
+		}):Play()
 	end)
 end
 
