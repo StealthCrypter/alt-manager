@@ -14,7 +14,7 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
-frame.Size = UDim2.fromOffset(360, 390)
+frame.Size = UDim2.fromOffset(360, 430)
 frame.Position = UDim2.fromOffset(20, 20)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.BorderSizePixel = 0
@@ -76,9 +76,12 @@ local commandToggle = makeButton(
 )
 commandToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
 
+local sayInput = makeTextBox("Say something in chat", UDim2.fromOffset(10, 172))
+local sayButton = makeButton("Say", UDim2.fromOffset(250, 172), UDim2.fromOffset(100, 32))
+
 local accountList = Instance.new("ScrollingFrame")
-accountList.Position = UDim2.fromOffset(10, 174)
-accountList.Size = UDim2.new(1, -20, 1, -224)
+accountList.Position = UDim2.fromOffset(10, 214)
+accountList.Size = UDim2.new(1, -20, 1, -264)
 accountList.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
 accountList.BorderSizePixel = 0
 accountList.ScrollBarThickness = 6
@@ -182,3 +185,144 @@ commandToggle.Activated:Connect(function()
 end)
 
 refresh()
+-- ============================================================
+-- Command system (client-only, no server code)
+-- Each client running this script listens to chat. A command runs
+-- on THIS player's own character only when ALL of these are true:
+--   1) Command Toggle is ON
+--   2) the local player is listed as an Alt
+--   3) the person who chatted is listed as a Main
+-- ============================================================
+local TextChatService = game:GetService("TextChatService")
+local PREFIX = "!"
+
+local function hasRole(username, role)
+	username = username:lower()
+	for _, account in ipairs(accounts) do
+		if account.Role == role and account.Name:lower() == username then
+			return true
+		end
+	end
+	return false
+end
+
+local function getHumanoid()
+	local character = player.Character
+	return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+local function say(text)
+	local channels = TextChatService:FindFirstChild("TextChannels")
+	local general = channels and channels:FindFirstChild("RBXGeneral")
+	if general then
+		general:SendAsync(text)
+	end
+end
+
+-- Add your own commands here. Each gets a table of args.
+local commands = {
+	jump = function()
+		local humanoid = getHumanoid()
+		if humanoid then
+			humanoid.Jump = true
+		end
+	end,
+
+	sit = function()
+		local humanoid = getHumanoid()
+		if humanoid then
+			humanoid.Sit = true
+		end
+	end,
+
+	speed = function(args)
+		local humanoid = getHumanoid()
+		local value = tonumber(args[1])
+		if humanoid and value then
+			humanoid.WalkSpeed = math.clamp(value, 0, 100)
+		end
+	end,
+
+	stop = function()
+		local humanoid = getHumanoid()
+		if humanoid then
+			humanoid:Move(Vector3.zero)
+		end
+	end,
+
+	say = function(args)
+		local text = table.concat(args, " ")
+		if text ~= "" then
+			say(text)
+		end
+	end,
+}
+
+local function handleMessage(senderName, text)
+	if not commandEnabled then return end
+	if senderName:lower() == player.Name:lower() then return end
+	if not hasRole(player.Name, "Alt") then return end
+	if not hasRole(senderName, "Main") then return end
+	if text:sub(1, #PREFIX) ~= PREFIX then return end
+
+	local args = {}
+	for word in text:sub(#PREFIX + 1):gmatch("%S+") do
+		table.insert(args, word)
+	end
+
+	local name = table.remove(args, 1)
+	local command = name and commands[name:lower()]
+	if command then
+		command(args)
+	end
+end
+
+if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+	TextChatService.MessageReceived:Connect(function(message)
+		local source = message.TextSource
+		if source then
+			local sender = Players:GetPlayerByUserId(source.UserId)
+			if sender then
+				handleMessage(sender.Name, message.Text)
+			end
+		end
+	end)
+else
+	local function hook(p)
+		p.Chatted:Connect(function(msg)
+			handleMessage(p.Name, msg)
+		end)
+	end
+	for _, p in ipairs(Players:GetPlayers()) do
+		hook(p)
+	end
+	Players.PlayerAdded:Connect(hook)
+end
+
+-- ============================================================
+-- Say box (press the Say button or hit Enter in the box):
+--   * If this account is listed as a Main, it chats "!say <text>",
+--     so every Alt (with Command Toggle ON) says <text>.
+--   * Otherwise it just sends <text> as a normal chat message.
+-- ============================================================
+local function sendSayBox()
+	local text = sayInput.Text:match("^%s*(.-)%s*$")
+	if text == "" then
+		return
+	end
+
+	if hasRole(player.Name, "Main") then
+		say(PREFIX .. "say " .. text)
+	else
+		say(text)
+	end
+	sayInput.Text = ""
+end
+
+sayButton.Activated:Connect(sendSayBox)
+
+sayInput.FocusLost:Connect(function(enterPressed)
+	if enterPressed then
+		sendSayBox()
+	end
+end)
