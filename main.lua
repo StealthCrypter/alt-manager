@@ -2,15 +2,19 @@
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
-local gui = player:FindFirstChild("AltManagerGUI")
-if gui then
-	gui:Destroy()
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Destroy any other copy of this GUI before making ours.
+for _, old in ipairs(playerGui:GetChildren()) do
+	if old.Name == "AltManagerGUI" then
+		old:Destroy()
+	end
 end
 
-gui = Instance.new("ScreenGui")
+local gui = Instance.new("ScreenGui")
 gui.Name = "AltManagerGUI"
 gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
+gui.Parent = playerGui
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
@@ -267,6 +271,14 @@ local commands = {
 }
 
 local loopId = 0
+local destroyed = false
+
+-- If another copy replaces this GUI, this copy goes inert: stops its loops
+-- and ignores chat commands (so two scripts never both act on one message).
+gui.Destroying:Connect(function()
+	destroyed = true
+	loopId += 1
+end)
 
 local function setCommandEnabled(value)
 	commandEnabled = value
@@ -316,6 +328,7 @@ local function applySetAlts(senderName, args)
 end
 
 local function handleMessage(senderName, text)
+	if destroyed then return end
 	if text:sub(1, #PREFIX) ~= PREFIX then return end
 
 	local args = {}
