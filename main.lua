@@ -9,7 +9,7 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
-frame.Size = UDim2.fromOffset(280, 200)
+frame.Size = UDim2.fromOffset(360, 330)
 frame.Position = UDim2.fromOffset(20, 20)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.Active = true
@@ -25,9 +25,45 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.Parent = frame
 
+local function makeTextBox(placeholder, position)
+	local textBox = Instance.new("TextBox")
+	textBox.Position = position
+	textBox.Size = UDim2.fromOffset(230, 32)
+	textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
+	textBox.BorderSizePixel = 0
+	textBox.PlaceholderText = placeholder
+	textBox.PlaceholderColor3 = Color3.fromRGB(170, 170, 175)
+	textBox.Text = ""
+	textBox.TextColor3 = Color3.new(1, 1, 1)
+	textBox.Font = Enum.Font.Gotham
+	textBox.TextSize = 14
+	textBox.ClearTextOnFocus = false
+	textBox.Parent = frame
+	return textBox
+end
+
+local function makeButton(text, position)
+	local button = Instance.new("TextButton")
+	button.Position = position
+	button.Size = UDim2.fromOffset(90, 32)
+	button.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
+	button.BorderSizePixel = 0
+	button.Text = text
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 13
+	button.Parent = frame
+	return button
+end
+
+local mainInput = makeTextBox("Main username", UDim2.fromOffset(10, 52))
+local addMainButton = makeButton("Add Main", UDim2.fromOffset(250, 52))
+local altInput = makeTextBox("Alt username", UDim2.fromOffset(10, 92))
+local addAltButton = makeButton("Add Alt", UDim2.fromOffset(250, 92))
+
 local list = Instance.new("TextLabel")
-list.Position = UDim2.fromOffset(10, 50)
-list.Size = UDim2.new(1, -20, 1, -60)
+list.Position = UDim2.fromOffset(10, 138)
+list.Size = UDim2.new(1, -20, 1, -148)
 list.BackgroundTransparency = 1
 list.TextXAlignment = Enum.TextXAlignment.Left
 list.TextYAlignment = Enum.TextYAlignment.Top
@@ -37,18 +73,37 @@ list.Font = Enum.Font.Gotham
 list.TextSize = 14
 list.Parent = frame
 
-local Accounts = {} -- Populate through your AccountManager module
+-- Names are kept in this local table for this session only.
+local Accounts = {}
+
 local function refresh()
 	local lines = {}
 	for i, account in ipairs(Accounts) do
-		table.insert(lines, string.format(
-			"%d. %s  (Lv %d)",
-			i,
-			account.Name or "Account",
-			account.Level or 1
-		))
+		table.insert(lines, string.format("%d. [%s] %s", i, account.Role, account.Name))
 	end
-	list.Text = table.concat(lines, "\n")
+	list.Text = #lines > 0 and table.concat(lines, "\n") or "No usernames added yet."
 end
+
+local function addAccount(textBox, role)
+	local username = textBox.Text:match("^%s*(.-)%s*$")
+	if username == "" then
+		return
+	end
+
+	table.insert(Accounts, {
+		Name = username,
+		Role = role,
+	})
+	textBox.Text = ""
+	refresh()
+end
+
+addMainButton.Activated:Connect(function()
+	addAccount(mainInput, "Main")
+end)
+
+addAltButton.Activated:Connect(function()
+	addAccount(altInput, "Alt")
+end)
 
 refresh()
