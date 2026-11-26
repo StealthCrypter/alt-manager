@@ -1284,7 +1284,10 @@ local function startGrief()
 	griefLoop = task.spawn(function()
 		local dti = 0
 		local lastRefreshTime = 0
-		if shared.DeleteToolRefresh then shared.DeleteToolRefresh() end
+		-- FIX: safely call shared.DeleteToolRefresh only if it is a function
+		if type(shared.DeleteToolRefresh) == "function" then
+			shared.DeleteToolRefresh()
+		end
 		lastRefreshTime = tick()
 
 		while isGriefing do
@@ -1296,7 +1299,10 @@ local function startGrief()
 				local targetBlocks = getAllTargetBlocks()
 				if #targetBlocks > 0 then
 					if tick() - lastRefreshTime >= 5 then
-						if shared.DeleteToolRefresh then shared.DeleteToolRefresh() end
+						-- FIX: safely call shared.DeleteToolRefresh only if it is a function
+						if type(shared.DeleteToolRefresh) == "function" then
+							shared.DeleteToolRefresh()
+						end
 						lastRefreshTime = tick()
 					end
 					for _, block in pairs(targetBlocks) do
