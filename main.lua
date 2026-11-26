@@ -23,7 +23,7 @@ end
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
-frame.Size = UDim2.fromOffset(360, 534)
+frame.Size = UDim2.fromOffset(520, 310)
 frame.Position = UDim2.fromOffset(20, 20)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.BorderSizePixel = 0
@@ -672,38 +672,33 @@ tabBar.Size = UDim2.new(1, 0, 0, 32)
 tabBar.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
 tabBar.BorderSizePixel = 0
 tabBar.ZIndex = 2
-tabBar.ScrollingDirection = Enum.ScrollingDirection.X
-tabBar.AutomaticCanvasSize = Enum.AutomaticSize.X
+tabBar.ScrollingDirection = Enum.ScrollingDirection.Y
+tabBar.AutomaticCanvasSize = Enum.AutomaticSize.Y
 tabBar.CanvasSize = UDim2.new()
 tabBar.ScrollBarThickness = 3
 tabBar.ScrollBarImageColor3 = Color3.fromRGB(88, 101, 242)
 tabBar.Parent = frame
 
 local tabLayout = Instance.new("UIListLayout")
-tabLayout.FillDirection = Enum.FillDirection.Horizontal
-tabLayout.Padding = UDim.new(0, 6)
+tabLayout.FillDirection = Enum.FillDirection.Vertical
+tabLayout.Padding = UDim.new(0, 4)
 tabLayout.Parent = tabBar
 
 local tabPadding = Instance.new("UIPadding")
-tabPadding.PaddingLeft = UDim.new(0, 10)
-tabPadding.PaddingRight = UDim.new(0, 10)
+tabPadding.PaddingLeft = UDim.new(0, 4)
+tabPadding.PaddingRight = UDim.new(0, 4)
 tabPadding.PaddingTop = UDim.new(0, 3)
 tabPadding.Parent = tabBar
 
 local tabButtons = {}
 for _, tabName in ipairs({ "Manager", "Actions", "Ping", "Move", "Destruction", "FAQ", "Settings" }) do
 	local tab = Instance.new("TextButton")
-	tab.Size = UDim2.fromOffset(0, 26)
+	tab.Size = UDim2.new(1, -4, 0, 28)
 	tab.BorderSizePixel = 0
 	tab.Text = tabName
 	tab.TextColor3 = Color3.new(1, 1, 1)
 	tab.Font = Enum.Font.GothamBold
-	tab.TextSize = 13
-	tab.AutomaticSize = Enum.AutomaticSize.X
-	local tabInset = Instance.new("UIPadding")
-	tabInset.PaddingLeft = UDim.new(0, 12)
-	tabInset.PaddingRight = UDim.new(0, 12)
-	tabInset.Parent = tab
+	tab.TextSize = 12
 	tab.ZIndex = 3
 	tab.Parent = tabBar
 	round(tab)
@@ -1139,12 +1134,81 @@ destructionPage.BorderSizePixel = 0
 destructionPage.Visible = false
 destructionPage.Parent = frame
 
+title.Size = UDim2.new(1, 0, 0, 26)
+title.TextSize = 13
+
+collapseButton.Size = UDim2.fromOffset(20, 20)
+collapseButton.Position = UDim2.new(1, -24, 0, 3)
+collapseButton.TextSize = 14
+
+tabBar.Position = UDim2.fromOffset(4, 34)
+tabBar.Size = UDim2.new(0, 104, 1, -42)
+
+local content = Instance.new("Frame")
+content.Position = UDim2.fromOffset(112, 32)
+content.Size = UDim2.new(1, -118, 1, -40)
+content.BackgroundTransparency = 1
+content.BorderSizePixel = 0
+content.ClipsDescendants = true
+content.Parent = frame
+
+for _, page in ipairs({ managerPage, actionsPage, pingPage, followPage, destructionPage, settingsPage }) do
+	page.Parent = content
+	page.Position = UDim2.new()
+	page.Size = UDim2.new(1, 0, 1, 0)
+end
+faqPage.Parent = content
+faqPage.Position = UDim2.fromOffset(8, 8)
+faqPage.Size = UDim2.new(1, -16, 1, -16)
+
+mainInput.Position = UDim2.fromOffset(8, 8)
+mainInput.Size = UDim2.fromOffset(196, 30)
+addMain.Position = UDim2.fromOffset(8, 44)
+addMain.Size = UDim2.fromOffset(196, 30)
+altInput.Position = UDim2.fromOffset(8, 84)
+altInput.Size = UDim2.fromOffset(196, 30)
+addAlt.Position = UDim2.fromOffset(8, 120)
+addAlt.Size = UDim2.fromOffset(196, 30)
+commandToggle.Position = UDim2.fromOffset(8, 166)
+commandToggle.Size = UDim2.fromOffset(196, 30)
+accountList.Position = UDim2.fromOffset(212, 8)
+accountList.Size = UDim2.new(1, -220, 1, -52)
+removeButton.Position = UDim2.new(0, 212, 1, -36)
+removeButton.Size = UDim2.new(1, -220, 0, 28)
+
+sayInput.Position = UDim2.fromOffset(10, 8)
+sayInput.Size = UDim2.new(1, -120, 0, 30)
+sayButton.Position = UDim2.new(1, -100, 0, 8)
+sayButton.Size = UDim2.fromOffset(90, 30)
+actionGrid.Position = UDim2.fromOffset(10, 46)
+actionGrid.Size = UDim2.new(1, -20, 0, 70)
+actionLayout.CellSize = UDim2.new(1 / 6, -5, 0, 32)
+loopSeconds.Position = UDim2.fromOffset(10, 126)
+loopSeconds.Size = UDim2.fromOffset(60, 30)
+loopCommand.Position = UDim2.fromOffset(76, 126)
+loopCommand.Size = UDim2.new(1, -258, 0, 30)
+startLoopButton.Position = UDim2.new(1, -176, 0, 126)
+startLoopButton.Size = UDim2.fromOffset(80, 30)
+stopLoopButton.Position = UDim2.new(1, -90, 0, 126)
+stopLoopButton.Size = UDim2.fromOffset(80, 30)
+
+pingToggle.Position = UDim2.fromOffset(10, 12)
+pingToggle.Size = UDim2.new(0.5, -15, 0, 32)
+pingSelf.Position = UDim2.fromOffset(10, 52)
+pingSelf.Size = UDim2.new(0.5, -15, 0, 32)
+pingInterval.Position = UDim2.fromOffset(10, 92)
+pingInterval.Size = UDim2.new(0.5, -15, 0, 32)
+for index, name in ipairs({ "Walk", "Jump", "Click" }) do
+	optionButtons[name].Position = UDim2.new(0.5, 5, 0, 12 + (index - 1) * 40)
+	optionButtons[name].Size = UDim2.new(0.5, -15, 0, 32)
+end
+
 local altMode = false
 local forceControls = false
 
 local altNotice = Instance.new("TextLabel")
-altNotice.Position = UDim2.fromOffset(10, 48)
-altNotice.Size = UDim2.new(1, -20, 1, -58)
+altNotice.Position = UDim2.fromOffset(10, 30)
+altNotice.Size = UDim2.new(1, -20, 1, -40)
 altNotice.BackgroundTransparency = 1
 altNotice.Text = "Registered as an alt."
 altNotice.TextWrapped = true
@@ -1185,7 +1249,7 @@ local function applyView()
 
 	local tween = TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Size = expanded and (altMode and UDim2.fromOffset(fullSize.X.Offset, 150) or fullSize)
-			or UDim2.fromOffset(fullSize.X.Offset, 40),
+			or UDim2.fromOffset(fullSize.X.Offset, 26),
 	})
 	if expanded then
 		showPages(true)
@@ -1212,12 +1276,6 @@ for name, tab in pairs(tabButtons) do
 	tab.Activated:Connect(function()
 		activeTab = name
 		applyView()
-		local left = tab.AbsolutePosition.X - tabBar.AbsolutePosition.X + tabBar.CanvasPosition.X
-		local target = left - (tabBar.AbsoluteSize.X - tab.AbsoluteSize.X) / 2
-		local maxScroll = math.max(tabBar.AbsoluteCanvasSize.X - tabBar.AbsoluteSize.X, 0)
-		TweenService:Create(tabBar, TweenInfo.new(0.15), {
-			CanvasPosition = Vector2.new(math.clamp(target, 0, maxScroll), 0),
-		}):Play()
 	end)
 end
 
@@ -1256,6 +1314,7 @@ frameStroke.Parent = frame
 
 local accentLine = Instance.new("Frame")
 accentLine.Size = UDim2.new(1, 0, 0, 2)
+accentLine.Position = UDim2.fromOffset(0, 26)
 accentLine.BackgroundColor3 = ACCENT
 accentLine.BorderSizePixel = 0
 accentLine.ZIndex = 5
@@ -1303,7 +1362,7 @@ local footerPad = Instance.new("UIPadding")
 footerPad.PaddingLeft = UDim.new(0, 10)
 footerPad.Parent = footer
 table.insert(viewListeners, function(visible)
-	footer.Visible = visible
+	footer.Visible = false
 end)
 
 task.spawn(function()
@@ -1333,11 +1392,9 @@ task.spawn(function()
 
 		refreshAltMode()
 
-		if expanded then
-			title.Text = "  Cortege"
-		else
-			title.Text = ("  Cortege   %s  %dM %dA"):format(commandEnabled and "ON" or "OFF", mains, alts)
-		end
+		title.Text = ("  CORTEGE  |  Cmds %s  |  %dM %dA  |  Ping %s"):format(
+			commandEnabled and "ON" or "OFF", mains, alts, pingOn and "ON" or "OFF"
+		)
 
 		task.wait(0.5)
 	end
