@@ -329,6 +329,7 @@ end
 -- ============================================================
 local PathfindingService = game:GetService("PathfindingService")
 local followId = 0
+local followingName
 
 local function altIndex()
 	local index = 0
@@ -343,11 +344,12 @@ local function altIndex()
 	return 1
 end
 
-local function startFollow(targetName)
+local function startFollow(targetName, baseDistance)
 	followId += 1
 	local myId = followId
+	followingName = targetName
 	-- Each alt keeps a slightly different distance so they don't all stack up.
-	local stopDistance = 6 + 2 * (altIndex() - 1)
+	local stopDistance = math.clamp(baseDistance or 6, 3, 50) + 2 * (altIndex() - 1)
 
 	task.spawn(function()
 		local path = PathfindingService:CreatePath({
@@ -402,6 +404,7 @@ local function startFollow(targetName)
 
 		-- Ended (not replaced by a newer follow): stand still.
 		if followId == myId then
+			followingName = nil
 			local humanoid = getHumanoid()
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			if humanoid and root then
@@ -488,9 +491,10 @@ local function handleMessage(senderName, text)
 			startLoop(math.max(interval, 2), command, args)
 		end
 	elseif name == "follow" then
-		startFollow(senderName)
+		startFollow(senderName, tonumber(args[1]))
 	elseif name == "unfollow" then
 		followId += 1
+		followingName = nil
 	elseif commands[name] then
 		commands[name](args)
 	end
@@ -603,9 +607,9 @@ tabPadding.PaddingTop = UDim.new(0, 3)
 tabPadding.Parent = tabBar
 
 local tabButtons = {}
-for _, tabName in ipairs({ "Manager", "Ping", "FAQ" }) do
+for _, tabName in ipairs({ "Manager", "Ping", "Follow", "FAQ" }) do
 	local tab = Instance.new("TextButton")
-	tab.Size = UDim2.fromOffset(90, 26)
+	tab.Size = UDim2.fromOffset(80, 26)
 	tab.BorderSizePixel = 0
 	tab.Text = tabName
 	tab.TextColor3 = Color3.new(1, 1, 1)
@@ -828,6 +832,100 @@ pingToggle.Activated:Connect(function()
 	end
 end)
 
+faq("Follow",
+	"Follow tab: on the Main, Start Follow tells every Alt to pathfind after the Main (!follow <distance>) and Stop Follow tells them to stand still (!unfollow). Distance is the base gap in studs (3-50); each Alt adds 2 more so they spread out. On an Alt, the buttons follow/stop the Main from that Alt's own list. Alts need their Command Toggle ON.")
+
+-- ============================================================
+-- Follow tab
+-- ============================================================
+local followPage = Instance.new("Frame")
+followPage.Position = UDim2.fromOffset(0, 72)
+followPage.Size = UDim2.new(1, 0, 1, -72)
+followPage.BackgroundTransparency = 1
+followPage.BorderSizePixel = 0
+followPage.Visible = false
+followPage.Parent = frame
+
+local followDistance = Instance.new("TextBox")
+followDistance.Position = UDim2.fromOffset(10, 12)
+followDistance.Size = UDim2.new(1, -20, 0, 32)
+followDistance.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
+followDistance.BorderSizePixel = 0
+followDistance.PlaceholderText = "Follow distance in studs (3-50)"
+followDistance.PlaceholderColor3 = Color3.fromRGB(170, 170, 175)
+followDistance.Text = "6"
+followDistance.TextColor3 = Color3.new(1, 1, 1)
+followDistance.Font = Enum.Font.Gotham
+followDistance.TextSize = 14
+followDistance.ClearTextOnFocus = false
+followDistance.Parent = followPage
+round(followDistance)
+
+local function followButton(text, y, color)
+	local button = Instance.new("TextButton")
+	button.Position = UDim2.fromOffset(10, y)
+	button.Size = UDim2.new(1, -20, 0, 32)
+	button.BackgroundColor3 = color
+	button.BorderSizePixel = 0
+	button.Text = text
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 13
+	button.Parent = followPage
+	round(button)
+	return button
+end
+
+local startFollowButton = followButton("Start Follow", 54, Color3.fromRGB(65, 125, 75))
+local stopFollowButton = followButton("Stop Follow", 96, Color3.fromRGB(110, 65, 65))
+
+local followStatus = Instance.new("TextLabel")
+followStatus.Position = UDim2.fromOffset(10, 140)
+followStatus.Size = UDim2.new(1, -20, 0, 24)
+followStatus.BackgroundTransparency = 1
+followStatus.TextXAlignment = Enum.TextXAlignment.Left
+followStatus.Font = Enum.Font.GothamBold
+followStatus.TextSize = 13
+followStatus.TextColor3 = Color3.fromRGB(130, 175, 255)
+followStatus.Text = "Not following"
+followStatus.Parent = followPage
+
+local followNote = Instance.new("TextLabel")
+followNote.Position = UDim2.fromOffset(10, 170)
+followNote.Size = UDim2.new(1, -20, 0, 80)
+followNote.BackgroundTransparency = 1
+followNote.TextWrapped = true
+followNote.TextXAlignment = Enum.TextXAlignment.Left
+followNote.TextYAlignment = Enum.TextYAlignment.Top
+followNote.Font = Enum.Font.Gotham
+followNote.TextSize = 13
+followNote.TextColor3 = Color3.fromRGB(190, 190, 195)
+followNote.Text = "On the Main these buttons command every Alt. Alts pathfind around obstacles and need their Command Toggle ON."
+followNote.Parent = followPage
+
+startFollowButton.Activated:Connect(function()
+	local distance = tonumber(followDistance.Text) or 6
+	if hasRole(player.Name, "Main") then
+		say(PREFIX .. "follow " .. distance)
+	else
+		for _, account in ipairs(accounts) do
+			if account.Role == "Main" then
+				startFollow(account.Name, distance)
+				break
+			end
+		end
+	end
+end)
+
+stopFollowButton.Activated:Connect(function()
+	if hasRole(player.Name, "Main") then
+		say(PREFIX .. "unfollow")
+	else
+		followId += 1
+		followingName = nil
+	end
+end)
+
 -- Tab switching + collapse
 local activeTab = "Manager"
 local expanded = true
@@ -838,6 +936,7 @@ local function applyView()
 	managerPage.Visible = expanded and activeTab == "Manager"
 	faqPage.Visible = expanded and activeTab == "FAQ"
 	pingPage.Visible = expanded and activeTab == "Ping"
+	followPage.Visible = expanded and activeTab == "Follow"
 	TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {
 		Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40),
 	}):Play()
@@ -948,6 +1047,12 @@ task.spawn(function()
 		pingToggle.Text = isMain and (relayOn and "Ping Alts: ON" or "Ping Alts: OFF")
 			or (pingEnabled and "Ping: ON" or "Ping: OFF")
 		pingToggle.BackgroundColor3 = pingOn and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
+
+		if hasRole(player.Name, "Main") then
+			followStatus.Text = "Main: commands all Alts"
+		else
+			followStatus.Text = followingName and ("Following: " .. followingName) or "Not following"
+		end
 
 		task.wait(0.5)
 	end
