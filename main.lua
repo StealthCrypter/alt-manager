@@ -9,7 +9,7 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
-frame.Size = UDim2.fromOffset(360, 330)
+frame.Size = UDim2.fromOffset(360, 360)
 frame.Position = UDim2.fromOffset(20, 20)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.Active = true
@@ -42,10 +42,10 @@ local function makeTextBox(placeholder, position)
 	return textBox
 end
 
-local function makeButton(text, position)
+local function makeButton(text, position, size)
 	local button = Instance.new("TextButton")
 	button.Position = position
-	button.Size = UDim2.fromOffset(90, 32)
+	button.Size = size or UDim2.fromOffset(90, 32)
 	button.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
 	button.BorderSizePixel = 0
 	button.Text = text
@@ -61,9 +61,13 @@ local addMainButton = makeButton("Add Main", UDim2.fromOffset(250, 52))
 local altInput = makeTextBox("Alt username", UDim2.fromOffset(10, 92))
 local addAltButton = makeButton("Add Alt", UDim2.fromOffset(250, 92))
 
+local commandEnabled = false
+local commandToggle = makeButton("Command Toggle: OFF", UDim2.fromOffset(10, 132), UDim2.new(1, -20, 0, 32))
+commandToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+
 local list = Instance.new("TextLabel")
-list.Position = UDim2.fromOffset(10, 138)
-list.Size = UDim2.new(1, -20, 1, -148)
+list.Position = UDim2.fromOffset(10, 174)
+list.Size = UDim2.new(1, -20, 1, -184)
 list.BackgroundTransparency = 1
 list.TextXAlignment = Enum.TextXAlignment.Left
 list.TextYAlignment = Enum.TextYAlignment.Top
@@ -104,6 +108,14 @@ end)
 
 addAltButton.Activated:Connect(function()
 	addAccount(altInput, "Alt")
+end)
+
+commandToggle.Activated:Connect(function()
+	commandEnabled = not commandEnabled
+	commandToggle.Text = commandEnabled and "Command Toggle: ON" or "Command Toggle: OFF"
+	commandToggle.BackgroundColor3 = commandEnabled
+		and Color3.fromRGB(65, 125, 75)
+		or Color3.fromRGB(110, 65, 65)
 end)
 
 refresh()
