@@ -560,7 +560,7 @@ local function handleMessage(senderName, text)
 	if not commandEnabled then return end
 
 	if name == "ping" then
-		setPing((args[1] or "on"):lower() ~= "off")
+		setPing((args[1] or "on"):lower() ~= "off", tonumber(args[2]), args[3])
 		return
 	end
 
@@ -849,9 +849,24 @@ local function pingOnce()
 	end
 end
 
-setPing = function(value)
+setPing = function(value, seconds, optionList)
 	if value and hasRole(player.Name, "Main") then
 		return
+	end
+	if value and seconds then
+		pingInterval.Text = tostring(seconds)
+	end
+	if value and optionList then
+		local chosen = {}
+		for option in optionList:lower():gmatch("[^,]+") do
+			chosen[option] = true
+		end
+		pingOptions.Walk = chosen.walk == true
+		pingOptions.Jump = chosen.jump == true
+		pingOptions.Click = chosen.click == true
+		for name in pairs(optionButtons) do
+			paintOption(name)
+		end
 	end
 	pingEnabled = value
 	pingId += 1
@@ -883,7 +898,18 @@ end)
 local relayOn = false
 pingToggle.Activated:Connect(function()
 	relayOn = not relayOn
-	relayCommand(PREFIX .. "ping " .. (relayOn and "on" or "off"))
+	if relayOn then
+		local chosen = {}
+		for _, name in ipairs({ "Walk", "Jump", "Click" }) do
+			if pingOptions[name] then
+				table.insert(chosen, name:lower())
+			end
+		end
+		local seconds = math.max(tonumber(pingInterval.Text) or 10, 3)
+		relayCommand(PREFIX .. "ping on " .. seconds .. " " .. (#chosen > 0 and table.concat(chosen, ",") or "none"))
+	else
+		relayCommand(PREFIX .. "ping off")
+	end
 end)
 
 pingSelf.Activated:Connect(function()
@@ -1113,6 +1139,22 @@ destructionPage.BorderSizePixel = 0
 destructionPage.Visible = false
 destructionPage.Parent = frame
 
+local altMode = false
+local forceControls = false
+
+local altNotice = Instance.new("TextLabel")
+altNotice.Position = UDim2.fromOffset(10, 48)
+altNotice.Size = UDim2.new(1, -20, 1, -58)
+altNotice.BackgroundTransparency = 1
+altNotice.Text = "Registered as an alt."
+altNotice.TextWrapped = true
+altNotice.Font = Enum.Font.GothamBold
+altNotice.TextSize = 30
+altNotice.TextColor3 = Color3.fromRGB(120, 220, 150)
+altNotice.ZIndex = 2
+altNotice.Visible = false
+altNotice.Parent = frame
+
 local activeTab = "Manager"
 local expanded = true
 local fullSize = frame.Size
@@ -1120,7 +1162,9 @@ local fullSize = frame.Size
 local viewListeners = {}
 
 local function applyView()
-	local function showPages(visible)
+	local function showPages(shown)
+		altNotice.Visible = shown and altMode
+		local visible = shown and not altMode
 		tabBar.Visible = visible
 		managerPage.Visible = visible and activeTab == "Manager"
 		actionsPage.Visible = visible and activeTab == "Actions"
@@ -1140,7 +1184,8 @@ local function applyView()
 	end
 
 	local tween = TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40),
+		Size = expanded and (altMode and UDim2.fromOffset(fullSize.X.Offset, 150) or fullSize)
+			or UDim2.fromOffset(fullSize.X.Offset, 40),
 	})
 	if expanded then
 		showPages(true)
@@ -1152,6 +1197,14 @@ local function applyView()
 				showPages(false)
 			end
 		end)
+	end
+end
+
+local function refreshAltMode()
+	local nowAlt = hasRole(player.Name, "Alt") and not forceControls
+	if nowAlt ~= altMode then
+		altMode = nowAlt
+		applyView()
 	end
 end
 
@@ -1180,6 +1233,9 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, processed
 	if input.KeyCode == Enum.KeyCode.RightShift then
 		expanded = not expanded
 		applyView()
+	elseif input.KeyCode == Enum.KeyCode.RightControl then
+		forceControls = not forceControls
+		refreshAltMode()
 	end
 end)
 
@@ -1274,6 +1330,8 @@ task.spawn(function()
 		else
 			followStatus.Text = followingName and (followingMode .. ": " .. followingName) or "Idle"
 		end
+
+		refreshAltMode()
 
 		if expanded then
 			title.Text = "  Cortege"
