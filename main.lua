@@ -280,6 +280,26 @@ local commands = {
 	end,
 }
 
+local lastSync = 0
+local function relayCommand(text)
+	task.spawn(function()
+		if not hasRole(player.Name, "Alt") and os.clock() - lastSync > 60 then
+			local names = {}
+			for _, account in ipairs(accounts) do
+				if account.Role == "Alt" then
+					table.insert(names, account.Name)
+				end
+			end
+			if #names > 0 then
+				say(PREFIX .. "setalts " .. table.concat(names, " "))
+				lastSync = os.clock()
+				task.wait(0.6)
+			end
+		end
+		say(text)
+	end)
+end
+
 local destroyed = false
 
 local RunService = game:GetService("RunService")
@@ -621,12 +641,12 @@ startLoopButton.Activated:Connect(function()
 	local seconds = tonumber(loopSeconds.Text)
 	local command = loopCommand.Text:match("^%s*(.-)%s*$")
 	if seconds and command ~= "" then
-		say(PREFIX .. "loop " .. seconds .. " " .. command)
+		relayCommand(PREFIX .. "loop " .. seconds .. " " .. command)
 	end
 end)
 
 stopLoopButton.Activated:Connect(function()
-	say(PREFIX .. "stoploop")
+	relayCommand(PREFIX .. "stoploop")
 end)
 
 title.ZIndex = 2
@@ -860,11 +880,11 @@ end)
 
 local relayOn = false
 pingToggle.Activated:Connect(function()
-	if hasRole(player.Name, "Main") then
-		relayOn = not relayOn
-		say(PREFIX .. "ping " .. (relayOn and "on" or "off"))
-	else
+	if hasRole(player.Name, "Alt") or #accounts == 0 then
 		setPing(not pingEnabled)
+	else
+		relayOn = not relayOn
+		relayCommand(PREFIX .. "ping " .. (relayOn and "on" or "off"))
 	end
 end)
 
@@ -969,7 +989,7 @@ followStatus.Parent = followPage
 startFollowButton.Activated:Connect(function()
 	local distance = tonumber(followDistance.Text) or 6
 	if hasRole(player.Name, "Main") then
-		say(PREFIX .. "follow " .. followMode .. " " .. distance)
+		relayCommand(PREFIX .. "follow " .. followMode .. " " .. distance)
 	else
 		for _, account in ipairs(accounts) do
 			if account.Role == "Main" then
@@ -982,7 +1002,7 @@ end)
 
 stopFollowButton.Activated:Connect(function()
 	if hasRole(player.Name, "Main") then
-		say(PREFIX .. "unfollow")
+		relayCommand(PREFIX .. "unfollow")
 	else
 		followId += 1
 		followingName = nil
@@ -1031,7 +1051,7 @@ for index, action in ipairs(quickActions) do
 	button.Parent = actionGrid
 	round(button)
 	button.Activated:Connect(function()
-		say(PREFIX .. action[2])
+		relayCommand(PREFIX .. action[2])
 	end)
 end
 
@@ -1239,7 +1259,7 @@ task.spawn(function()
 			end
 		end
 
-		local isMain = hasRole(player.Name, "Main")
+		local isMain = not (hasRole(player.Name, "Alt") or #accounts == 0)
 		local pingOn = isMain and relayOn or pingEnabled
 		footer.Text = ("Cmds %s  |  %dM %dA  |  Ping %s"):format(
 			commandEnabled and "ON" or "OFF", mains, alts, pingOn and "ON" or "OFF"
