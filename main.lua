@@ -1,5 +1,6 @@
 -- LocalScript UI
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 
 local playerGui = player:WaitForChild("PlayerGui")
@@ -24,7 +25,7 @@ end
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
-frame.Size = UDim2.fromOffset(360, 510)
+frame.Size = UDim2.fromOffset(360, 534)
 frame.Position = UDim2.fromOffset(20, 20)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.BorderSizePixel = 0
@@ -48,7 +49,7 @@ title.Parent = frame
 local managerPage = Instance.new("Frame")
 managerPage.Name = "ManagerPage"
 managerPage.Position = UDim2.fromOffset(0, 30)
-managerPage.Size = UDim2.new(1, 0, 1, -30)
+managerPage.Size = UDim2.new(1, 0, 1, -54)
 managerPage.BackgroundTransparency = 1
 managerPage.BorderSizePixel = 0
 managerPage.Parent = frame
@@ -291,6 +292,7 @@ local commands = {
 	end,
 }
 
+local setPing -- defined in the Ping section below
 local loopId = 0
 local destroyed = false
 
@@ -374,6 +376,11 @@ local function handleMessage(senderName, text)
 	end
 
 	if not commandEnabled then return end
+
+	if name == "ping" then
+		setPing((args[1] or "on"):lower() ~= "off")
+		return
+	end
 
 	if name == "stoploop" then
 		loopId += 1
@@ -505,7 +512,7 @@ tabPadding.PaddingTop = UDim.new(0, 3)
 tabPadding.Parent = tabBar
 
 local tabButtons = {}
-for _, tabName in ipairs({ "Manager", "FAQ" }) do
+for _, tabName in ipairs({ "Manager", "Ping", "FAQ" }) do
 	local tab = Instance.new("TextButton")
 	tab.Size = UDim2.fromOffset(90, 26)
 	tab.BorderSizePixel = 0
@@ -522,7 +529,7 @@ end
 -- FAQ page
 local faqPage = Instance.new("ScrollingFrame")
 faqPage.Position = UDim2.fromOffset(10, 82)
-faqPage.Size = UDim2.new(1, -20, 1, -92)
+faqPage.Size = UDim2.new(1, -20, 1, -116)
 faqPage.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
 faqPage.BorderSizePixel = 0
 faqPage.ScrollBarThickness = 6
@@ -584,6 +591,152 @@ faq("Nothing happens?",
 faq("Good to know",
 	"Commands show up in public chat for everyone. Re-running the script replaces the old window and switches the old copy off. Use the - button to collapse the window.")
 
+faq("Ping (anti-AFK)",
+	"Ping makes ALTS do a small action every few seconds (walk a bit, jump, optional click) so Roblox's idle kick doesn't remove them. On the Main, the Ping button just tells all Alts to start/stop (!ping on/off); the Main never pings itself. Alts need their Command Toggle ON. Minimum interval is 3s.")
+
+-- ============================================================
+-- Ping tab: periodic movement / click so the account stays active
+-- ============================================================
+local VirtualUser = game:GetService("VirtualUser")
+
+local pingPage = Instance.new("Frame")
+pingPage.Position = UDim2.fromOffset(0, 72)
+pingPage.Size = UDim2.new(1, 0, 1, -72)
+pingPage.BackgroundTransparency = 1
+pingPage.BorderSizePixel = 0
+pingPage.Visible = false
+pingPage.Parent = frame
+
+local function pingBox(placeholder, y, default)
+	local box = Instance.new("TextBox")
+	box.Position = UDim2.fromOffset(10, y)
+	box.Size = UDim2.new(1, -20, 0, 32)
+	box.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
+	box.BorderSizePixel = 0
+	box.PlaceholderText = placeholder
+	box.PlaceholderColor3 = Color3.fromRGB(170, 170, 175)
+	box.Text = default
+	box.TextColor3 = Color3.new(1, 1, 1)
+	box.Font = Enum.Font.Gotham
+	box.TextSize = 14
+	box.ClearTextOnFocus = false
+	box.Parent = pingPage
+	round(box)
+	return box
+end
+
+local function pingButton(text, y)
+	local button = Instance.new("TextButton")
+	button.Position = UDim2.fromOffset(10, y)
+	button.Size = UDim2.new(1, -20, 0, 32)
+	button.BorderSizePixel = 0
+	button.Text = text
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 13
+	button.Parent = pingPage
+	round(button)
+	return button
+end
+
+local pingEnabled = false
+local pingId = 0
+local pingOptions = { Walk = true, Jump = true, Click = false }
+
+local pingToggle = pingButton("Ping: OFF", 12)
+pingToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+local pingInterval = pingBox("Seconds between pings (min 3)", 54, "10")
+
+local optionButtons = {}
+local optionLabels = { Walk = "Walk around", Jump = "Jump", Click = "Click / shoot (screen center)" }
+local function paintOption(name)
+	local on = pingOptions[name]
+	optionButtons[name].Text = optionLabels[name] .. ": " .. (on and "ON" or "OFF")
+	optionButtons[name].BackgroundColor3 = on and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(60, 60, 68)
+end
+for index, name in ipairs({ "Walk", "Jump", "Click" }) do
+	optionButtons[name] = pingButton("", 96 + (index - 1) * 40)
+	paintOption(name)
+	optionButtons[name].Activated:Connect(function()
+		pingOptions[name] = not pingOptions[name]
+		paintOption(name)
+	end)
+end
+
+local pingNote = Instance.new("TextLabel")
+pingNote.Position = UDim2.fromOffset(10, 224)
+pingNote.Size = UDim2.new(1, -20, 0, 80)
+pingNote.BackgroundTransparency = 1
+pingNote.TextWrapped = true
+pingNote.TextXAlignment = Enum.TextXAlignment.Left
+pingNote.TextYAlignment = Enum.TextYAlignment.Top
+pingNote.Font = Enum.Font.Gotham
+pingNote.TextSize = 13
+pingNote.TextColor3 = Color3.fromRGB(190, 190, 195)
+pingNote.Text = "Ping runs on Alts only. On the Main this button just tells every Alt to start or stop (!ping on/off). Alts need their Command Toggle ON to obey."
+pingNote.Parent = pingPage
+
+local function pingOnce()
+	local character = player.Character
+	local humanoid = getHumanoid()
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+
+	if pingOptions.Walk and humanoid and root then
+		local angle = math.random() * math.pi * 2
+		humanoid:MoveTo(root.Position + Vector3.new(math.cos(angle), 0, math.sin(angle)) * 8)
+	end
+	if pingOptions.Jump and humanoid then
+		humanoid.Jump = true
+	end
+	if pingOptions.Click then
+		local viewport = workspace.CurrentCamera.ViewportSize
+		VirtualUser:CaptureController()
+		VirtualUser:ClickButton1(Vector2.new(viewport.X / 2, viewport.Y / 2))
+	end
+end
+
+setPing = function(value)
+	if value and hasRole(player.Name, "Main") then
+		return -- the Main never pings itself, it only tells the Alts
+	end
+	pingEnabled = value
+	pingId += 1
+	pingToggle.Text = value and "Ping: ON" or "Ping: OFF"
+	pingToggle.BackgroundColor3 = value and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
+
+	if value then
+		local myId = pingId
+		task.spawn(function()
+			while pingId == myId and pingEnabled and not destroyed do
+				pingOnce()
+				task.wait(math.max(tonumber(pingInterval.Text) or 10, 3))
+			end
+		end)
+	end
+end
+
+-- Also answer Roblox's own idle signal while Ping is on.
+player.Idled:Connect(function()
+	if pingEnabled then
+		VirtualUser:CaptureController()
+		VirtualUser:ClickButton1(Vector2.new())
+	end
+end)
+
+gui.Destroying:Connect(function()
+	pingId += 1
+end)
+
+local relayOn = false
+pingToggle.Activated:Connect(function()
+	if hasRole(player.Name, "Main") then
+		relayOn = not relayOn
+		say(PREFIX .. "ping " .. (relayOn and "on" or "off"))
+	else
+		setPing(not pingEnabled)
+	end
+end)
+
 -- Tab switching + collapse
 local activeTab = "Manager"
 local expanded = true
@@ -593,7 +746,10 @@ local function applyView()
 	tabBar.Visible = expanded
 	managerPage.Visible = expanded and activeTab == "Manager"
 	faqPage.Visible = expanded and activeTab == "FAQ"
-	frame.Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40)
+	pingPage.Visible = expanded and activeTab == "Ping"
+	TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {
+		Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40),
+	}):Play()
 	collapseButton.Text = expanded and "-" or "+"
 	for name, tab in pairs(tabButtons) do
 		tab.BackgroundColor3 = name == activeTab and Color3.fromRGB(75, 110, 170) or Color3.fromRGB(55, 55, 63)
@@ -613,3 +769,95 @@ collapseButton.Activated:Connect(function()
 end)
 
 applyView()
+
+-- ============================================================
+-- Visual polish: darker palette, border, accent line, hover and
+-- focus effects, live status footer
+-- ============================================================
+local ACCENT = Color3.fromRGB(88, 101, 242)
+local PANEL = Color3.fromRGB(32, 32, 38)
+
+frame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+title.BackgroundColor3 = PANEL
+tabBar.BackgroundColor3 = PANEL
+
+local frameStroke = Instance.new("UIStroke")
+frameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+frameStroke.Color = Color3.fromRGB(62, 62, 72)
+frameStroke.Thickness = 1
+frameStroke.Parent = frame
+
+local accentLine = Instance.new("Frame")
+accentLine.Size = UDim2.new(1, 0, 0, 2)
+accentLine.BackgroundColor3 = ACCENT
+accentLine.BorderSizePixel = 0
+accentLine.ZIndex = 5
+accentLine.Parent = frame
+
+local function polish(inst)
+	if inst:IsA("TextBox") then
+		local stroke = Instance.new("UIStroke")
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Color = Color3.fromRGB(70, 70, 82)
+		stroke.Thickness = 1
+		stroke.Parent = inst
+		inst.Focused:Connect(function()
+			stroke.Color = ACCENT
+		end)
+		inst.FocusLost:Connect(function()
+			stroke.Color = Color3.fromRGB(70, 70, 82)
+		end)
+	elseif inst:IsA("TextButton") then
+		inst.AutoButtonColor = false
+		inst.MouseEnter:Connect(function()
+			TweenService:Create(inst, TweenInfo.new(0.12), { BackgroundTransparency = 0.2 }):Play()
+		end)
+		inst.MouseLeave:Connect(function()
+			TweenService:Create(inst, TweenInfo.new(0.12), { BackgroundTransparency = 0 }):Play()
+		end)
+	end
+end
+for _, inst in ipairs(frame:GetDescendants()) do
+	polish(inst)
+end
+
+-- Footer: live status
+local footer = Instance.new("TextLabel")
+footer.Position = UDim2.new(0, 0, 1, -24)
+footer.Size = UDim2.new(1, 0, 0, 24)
+footer.BackgroundColor3 = PANEL
+footer.BorderSizePixel = 0
+footer.TextColor3 = Color3.fromRGB(170, 170, 178)
+footer.Font = Enum.Font.Gotham
+footer.TextSize = 12
+footer.TextXAlignment = Enum.TextXAlignment.Left
+footer.ZIndex = 2
+footer.Parent = frame
+local footerPad = Instance.new("UIPadding")
+footerPad.PaddingLeft = UDim.new(0, 10)
+footerPad.Parent = footer
+
+task.spawn(function()
+	while not destroyed do
+		local mains, alts = 0, 0
+		for _, account in ipairs(accounts) do
+			if account.Role == "Main" then
+				mains += 1
+			else
+				alts += 1
+			end
+		end
+
+		local isMain = hasRole(player.Name, "Main")
+		local pingOn = isMain and relayOn or pingEnabled
+		footer.Text = ("Commands %s  |  Main %d  |  Alts %d  |  Ping %s"):format(
+			commandEnabled and "ON" or "OFF", mains, alts, pingOn and "ON" or "OFF"
+		)
+
+		pingToggle.Text = isMain and (relayOn and "Ping Alts: ON" or "Ping Alts: OFF")
+			or (pingEnabled and "Ping: ON" or "Ping: OFF")
+		pingToggle.BackgroundColor3 = pingOn and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
+
+		task.wait(0.5)
+	end
+end)
