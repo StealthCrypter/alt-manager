@@ -1142,6 +1142,99 @@ afkButton.Parent = settingsPage
 round(afkButton)
 
 afkButton.Activated:Connect(function()
+		-- ==========================================
+-- CHAT SPY
+-- ==========================================
+local chatSpyFrame = Instance.new("Frame")
+chatSpyFrame.Position = UDim2.fromOffset(10, 220)
+chatSpyFrame.Size = UDim2.new(1, -20, 0, 180)
+chatSpyFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+chatSpyFrame.BorderSizePixel = 0
+chatSpyFrame.Parent = settingsPage
+round(chatSpyFrame)
+
+local chatSpyTitle = Instance.new("TextLabel")
+chatSpyTitle.Size = UDim2.new(1, 0, 0, 25)
+chatSpyTitle.BackgroundTransparency = 1
+chatSpyTitle.Text = "👁️ Chat Spy"
+chatSpyTitle.TextColor3 = Color3.fromRGB(130, 175, 255)
+chatSpyTitle.Font = Enum.Font.GothamBold
+chatSpyTitle.TextSize = 14
+chatSpyTitle.TextXAlignment = Enum.TextXAlignment.Left
+chatSpyTitle.Parent = chatSpyFrame
+
+local chatSpyToggle = makeButton("Chat Spy: OFF", UDim2.fromOffset(10, 30), UDim2.new(1, -20, 0, 30))
+chatSpyToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+chatSpyToggle.Parent = chatSpyFrame
+
+local chatLog = Instance.new("ScrollingFrame")
+chatLog.Position = UDim2.fromOffset(10, 65)
+chatLog.Size = UDim2.new(1, -20, 1, -75)
+chatLog.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+chatLog.BorderSizePixel = 0
+chatLog.ScrollBarThickness = 4
+chatLog.CanvasSize = UDim2.new(0, 0, 0, 0)
+chatLog.AutomaticCanvasSize = Enum.AutomaticSize.Y
+chatLog.Parent = chatSpyFrame
+round(chatLog)
+
+local logLayout = Instance.new("UIListLayout")
+logLayout.Padding = UDim.new(0, 2)
+logLayout.Parent = chatLog
+
+local chatSpyEnabled = false
+local spyConnection = nil
+
+local function addLogEntry(text, color)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 20)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 12
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = chatLog
+	task.wait()
+	chatLog.CanvasPosition = Vector2.new(0, chatLog.AbsoluteCanvasSize.Y)
+end
+
+chatSpyToggle.Activated:Connect(function()
+	chatSpyEnabled = not chatSpyEnabled
+	if chatSpyEnabled then
+		chatSpyToggle.Text = "Chat Spy: ON"
+		chatSpyToggle.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
+		spyConnection = TextChatService.MessageReceived:Connect(function(message)
+			local source = message.TextSource
+			if not source then return end
+			local sender = Players:GetPlayerByUserId(source.UserId)
+			if not sender or sender == player then return end
+			local text = message.Text
+			local isHidden = text:sub(1, 1) == ";"
+			local isMuted = pcall(function() return sender:HasTag("Muted") end) and sender:HasTag("Muted")
+			local prefix = ""
+			local color = Color3.fromRGB(200, 200, 200)
+			if isHidden then
+				prefix = "🚫 [HIDDEN] "
+				color = Color3.fromRGB(255, 100, 100)
+			elseif isMuted then
+				prefix = "🤐 [MUTED] "
+				color = Color3.fromRGB(255, 165, 0)
+			end
+			addLogEntry(prefix .. sender.Name .. ": " .. text, color)
+			print("[CHAT SPY] " .. sender.Name .. ": " .. text)
+		end)
+	else
+		chatSpyToggle.Text = "Chat Spy: OFF"
+		chatSpyToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+		if spyConnection then spyConnection:Disconnect() spyConnection = nil end
+	end
+end)
+
+gui.Destroying:Connect(function()
+	if spyConnection then spyConnection:Disconnect() end
+end)
+-- ==========================================
 	antiAfk = not antiAfk
 	afkButton.Text = antiAfk and "Anti-AFK: ON" or "Anti-AFK: OFF"
 	afkButton.BackgroundColor3 = antiAfk and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
