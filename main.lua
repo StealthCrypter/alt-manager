@@ -112,8 +112,8 @@ local stopLoopButton = makeButton("Stop Loop", UDim2.new(0.5, 5, 0, 252), UDim2.
 stopLoopButton.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
 
 local accountList = Instance.new("ScrollingFrame")
-accountList.Position = UDim2.fromOffset(10, 294)
-accountList.Size = UDim2.new(1, -20, 1, -314)
+accountList.Position = UDim2.fromOffset(10, 174)
+accountList.Size = UDim2.new(1, -20, 1, -224)
 accountList.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
 accountList.BorderSizePixel = 0
 accountList.ScrollBarThickness = 6
@@ -293,15 +293,66 @@ local commands = {
 	end,
 }
 
+local destroyed = false
+
+-- Spin + emotes -----------------------------------------------
+local RunService = game:GetService("RunService")
+local spinConnection
+
+local function stopSpin()
+	if spinConnection then
+		spinConnection:Disconnect()
+		spinConnection = nil
+		local humanoid = getHumanoid()
+		if humanoid then
+			humanoid.AutoRotate = true
+		end
+	end
+end
+
+-- speed = full turns per second (0.5 - 10). Stops if the toggle goes OFF.
+local function startSpin(speed)
+	stopSpin()
+	local turns = math.clamp(speed or 2, 0.5, 10)
+	local humanoid = getHumanoid()
+	if humanoid then
+		humanoid.AutoRotate = false
+	end
+	spinConnection = RunService.Heartbeat:Connect(function(dt)
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if root and commandEnabled and not destroyed then
+			root.CFrame = root.CFrame * CFrame.Angles(0, math.pi * 2 * turns * dt, 0)
+		else
+			stopSpin()
+		end
+	end)
+end
+
+commands.spin = function(args)
+	startSpin(tonumber(args[1]))
+end
+commands.unspin = stopSpin
+
+for _, emoteName in ipairs({ "wave", "dance", "dance2", "dance3", "cheer", "laugh", "point" }) do
+	commands[emoteName] = function()
+		local humanoid = getHumanoid()
+		if humanoid then
+			pcall(function()
+				humanoid:PlayEmote(emoteName)
+			end)
+		end
+	end
+end
+
 local setPing -- defined in the Ping section below
 local loopId = 0
-local destroyed = false
 
 -- If another copy replaces this GUI, this copy goes inert: stops its loops
 -- and ignores chat commands (so two scripts never both act on one message).
 gui.Destroying:Connect(function()
 	destroyed = true
 	loopId += 1
+	stopSpin()
 end)
 
 local function setCommandEnabled(value)
@@ -332,7 +383,10 @@ local PathfindingService = game:GetService("PathfindingService")
 local followId = 0
 local followingName
 local followingMode
-local FOLLOW_MODES = { pf = true, direct = true, orbit = true, line = true }
+local FOLLOW_MODES = {
+	pf = true, direct = true, orbit = true, line = true,
+	circle = true, vee = true, grid = true, wall = true,
+}
 
 local function altIndex()
 	local index = 0
@@ -391,6 +445,26 @@ local function startFollow(targetName, baseDistance, mode)
 					humanoid:MoveTo(targetRoot.Position + Vector3.new(math.cos(angle), 0, math.sin(angle)) * baseGap)
 				elseif mode == "line" then
 					humanoid:MoveTo(targetRoot.Position - targetRoot.CFrame.LookVector * (baseGap * index))
+				else
+					-- Fixed slots relative to the Main (+Z is behind, X is sideways).
+					local total = altCount()
+					local offset
+					if mode == "circle" then
+						local angle = (index - 1) * (math.pi * 2 / total)
+						offset = Vector3.new(math.cos(angle) * baseGap, 0, math.sin(angle) * baseGap)
+					elseif mode == "vee" then
+						local side = index % 2 == 1 and -1 or 1
+						local rank = math.ceil(index / 2)
+						offset = Vector3.new(side * rank * baseGap * 0.8, 0, rank * baseGap)
+					elseif mode == "grid" then
+						local columns = math.ceil(math.sqrt(total))
+						local row = (index - 1) // columns
+						local column = (index - 1) % columns
+						offset = Vector3.new((column - (columns - 1) / 2) * baseGap, 0, baseGap * (row + 1))
+					else -- wall: one row, side by side
+						offset = Vector3.new((index - (total + 1) / 2) * baseGap, 0, baseGap)
+					end
+					humanoid:MoveTo(targetRoot.CFrame:PointToWorldSpace(offset))
 				end
 			elseif humanoid and root and targetRoot and humanoid.Health > 0
 				and (targetRoot.Position - root.Position).Magnitude > stopDistance then
@@ -628,7 +702,7 @@ tabBar.Parent = frame
 
 local tabLayout = Instance.new("UIListLayout")
 tabLayout.FillDirection = Enum.FillDirection.Horizontal
-tabLayout.Padding = UDim.new(0, 6)
+tabLayout.Padding = UDim.new(0, 4)
 tabLayout.Parent = tabBar
 
 local tabPadding = Instance.new("UIPadding")
@@ -637,14 +711,14 @@ tabPadding.PaddingTop = UDim.new(0, 3)
 tabPadding.Parent = tabBar
 
 local tabButtons = {}
-for _, tabName in ipairs({ "Manager", "Ping", "Move", "FAQ" }) do
+for _, tabName in ipairs({ "Manager", "Actions", "Ping", "Move", "FAQ" }) do
 	local tab = Instance.new("TextButton")
-	tab.Size = UDim2.fromOffset(80, 26)
+	tab.Size = UDim2.fromOffset(64, 26)
 	tab.BorderSizePixel = 0
 	tab.Text = tabName
 	tab.TextColor3 = Color3.new(1, 1, 1)
 	tab.Font = Enum.Font.GothamBold
-	tab.TextSize = 13
+	tab.TextSize = 12
 	tab.ZIndex = 3
 	tab.Parent = tabBar
 	round(tab)
@@ -701,7 +775,7 @@ end
 
 faq("Setup", "Run on every account. Main chats !setalts alt1 alt2, or add usernames by hand.")
 faq("Toggle", "Command Toggle ON on the alts. Or Main chats !on.")
-faq("Commands", "!jump  !sit  !speed n  !stop  !say text\n!follow [pf|direct|orbit|line] [studs]  !unfollow  !ping on/off\n!loop secs cmd  !stoploop")
+faq("Commands", "!jump  !sit  !speed n  !stop  !say text\n!spin [n]  !unspin  !wave  !dance  !cheer  !laugh  !point\n!follow [mode] [studs]  !unfollow  !ping on/off\nModes: pf direct orbit line circle vee grid wall\n!loop secs cmd  !stoploop")
 faq("Not working?", "Toggle off, wrong or missing names, or old script on the alt.")
 
 -- ============================================================
@@ -875,18 +949,54 @@ local function followButton(text, y, color)
 	return button
 end
 
-local followModes = { "pf", "direct", "orbit", "line" }
-local followModeLabels = { pf = "PF", direct = "Direct", orbit = "Orbit", line = "Line" }
+local followModes = { "pf", "direct", "orbit", "line", "circle", "vee", "grid", "wall" }
+local followModeLabels = {
+	pf = "PF", direct = "Direct", orbit = "Orbit", line = "Line",
+	circle = "Circle", vee = "Vee", grid = "Grid", wall = "Wall",
+}
 local followMode = "pf"
-local modeButton = followButton("Mode: PF", 54, Color3.fromRGB(75, 110, 170))
-modeButton.Activated:Connect(function()
-	local index = table.find(followModes, followMode) or 1
-	followMode = followModes[index % #followModes + 1]
-	modeButton.Text = "Mode: " .. followModeLabels[followMode]
-end)
 
-local startFollowButton = followButton("Start", 96, Color3.fromRGB(65, 125, 75))
+local modeGrid = Instance.new("Frame")
+modeGrid.Position = UDim2.fromOffset(10, 56)
+modeGrid.Size = UDim2.new(1, -20, 0, 70)
+modeGrid.BackgroundTransparency = 1
+modeGrid.Parent = followPage
+
+local modeLayout = Instance.new("UIGridLayout")
+modeLayout.CellSize = UDim2.new(0.25, -5, 0, 32)
+modeLayout.CellPadding = UDim2.fromOffset(6, 6)
+modeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+modeLayout.Parent = modeGrid
+
+local modeButtons = {}
+local function paintModes()
+	for name, button in pairs(modeButtons) do
+		button.BackgroundColor3 = name == followMode and Color3.fromRGB(75, 110, 170) or Color3.fromRGB(60, 60, 68)
+	end
+end
+for index, name in ipairs(followModes) do
+	local button = Instance.new("TextButton")
+	button.BorderSizePixel = 0
+	button.Text = followModeLabels[name]
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 12
+	button.LayoutOrder = index
+	button.Parent = modeGrid
+	round(button)
+	modeButtons[name] = button
+	button.Activated:Connect(function()
+		followMode = name
+		paintModes()
+	end)
+end
+paintModes()
+
+local startFollowButton = followButton("Start", 138, Color3.fromRGB(65, 125, 75))
+startFollowButton.Size = UDim2.new(0.5, -15, 0, 32)
 local stopFollowButton = followButton("Stop", 138, Color3.fromRGB(110, 65, 65))
+stopFollowButton.Position = UDim2.new(0.5, 5, 0, 138)
+stopFollowButton.Size = UDim2.new(0.5, -15, 0, 32)
 
 local followStatus = Instance.new("TextLabel")
 followStatus.Position = UDim2.fromOffset(10, 182)
@@ -922,6 +1032,64 @@ stopFollowButton.Activated:Connect(function()
 	end
 end)
 
+-- ============================================================
+-- Actions tab: say box, one-tap commands, loop controls
+-- ============================================================
+local actionsPage = Instance.new("Frame")
+actionsPage.Position = UDim2.fromOffset(0, 72)
+actionsPage.Size = UDim2.new(1, 0, 1, -72)
+actionsPage.BackgroundTransparency = 1
+actionsPage.BorderSizePixel = 0
+actionsPage.Visible = false
+actionsPage.Parent = frame
+
+sayInput.Parent = actionsPage
+sayInput.Position = UDim2.fromOffset(10, 12)
+sayButton.Parent = actionsPage
+sayButton.Position = UDim2.fromOffset(250, 12)
+
+local actionGrid = Instance.new("Frame")
+actionGrid.Position = UDim2.fromOffset(10, 56)
+actionGrid.Size = UDim2.new(1, -20, 0, 108)
+actionGrid.BackgroundTransparency = 1
+actionGrid.Parent = actionsPage
+
+local actionLayout = Instance.new("UIGridLayout")
+actionLayout.CellSize = UDim2.new(0.25, -5, 0, 32)
+actionLayout.CellPadding = UDim2.fromOffset(6, 6)
+actionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+actionLayout.Parent = actionGrid
+
+local quickActions = {
+	{ "Jump", "jump" }, { "Sit", "sit" }, { "Spin", "spin" }, { "Unspin", "unspin" },
+	{ "Wave", "wave" }, { "Dance", "dance" }, { "Dance 2", "dance2" }, { "Dance 3", "dance3" },
+	{ "Cheer", "cheer" }, { "Laugh", "laugh" }, { "Point", "point" }, { "Stop", "stop" },
+}
+for index, action in ipairs(quickActions) do
+	local button = Instance.new("TextButton")
+	button.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
+	button.BorderSizePixel = 0
+	button.Text = action[1]
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 12
+	button.LayoutOrder = index
+	button.Parent = actionGrid
+	round(button)
+	button.Activated:Connect(function()
+		say(PREFIX .. action[2])
+	end)
+end
+
+loopSeconds.Parent = actionsPage
+loopSeconds.Position = UDim2.fromOffset(10, 176)
+loopCommand.Parent = actionsPage
+loopCommand.Position = UDim2.fromOffset(88, 176)
+startLoopButton.Parent = actionsPage
+startLoopButton.Position = UDim2.fromOffset(10, 218)
+stopLoopButton.Parent = actionsPage
+stopLoopButton.Position = UDim2.new(0.5, 5, 0, 218)
+
 -- Tab switching + collapse
 local activeTab = "Manager"
 local expanded = true
@@ -932,6 +1100,7 @@ local function applyView()
 	managerPage.Visible = expanded and activeTab == "Manager"
 	faqPage.Visible = expanded and activeTab == "FAQ"
 	pingPage.Visible = expanded and activeTab == "Ping"
+	actionsPage.Visible = expanded and activeTab == "Actions"
 	followPage.Visible = expanded and activeTab == "Move"
 	TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {
 		Size = expanded and fullSize or UDim2.fromOffset(fullSize.X.Offset, 40),
