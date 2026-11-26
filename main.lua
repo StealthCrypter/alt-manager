@@ -1,26 +1,20 @@
 -- main.lua
--- Everything in ONE file: Config + Utils + StorageService + AccountManager + startup.
--- Put this in a regular SERVER Script inside ServerScriptService (not a LocalScript,
--- not a ModuleScript). DataStores only work on the server.
+-- Everything in ONE file: Config + Utils + AccountManager + startup.
+-- Put this in a regular SERVER Script inside ServerScriptService.
 -- If you sync with Rojo, name the file main.server.lua instead.
 --
--- NOTE: "accounts" here are just saved profile records in YOUR game's DataStore.
--- This cannot log anyone into another Roblox account.
+-- NOTE: No saving at all now. Accounts only live in memory while the player
+-- is in the server, and are gone when they leave.
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
-local RealDataStoreService = game:GetService("DataStoreService")
 
 -- ========================================
 -- CONFIG
 -- ========================================
 
 local Config = {
-	MaxAccounts = 5,          -- max saved accounts per player
-	AutoSaveInterval = 60,    -- seconds between autosaves (only saves if something changed)
-	DataStoreName = "RobloxAltAccounts",
-	MaxRetries = 3,           -- DataStore retry attempts
-	RetryDelay = 1,           -- seconds between retries
+	MaxAccounts = 5, -- max accounts per player
 }
 
 -- ========================================
@@ -152,68 +146,7 @@ function Utils.IsInRange(value, min, max)
 end
 
 -- ========================================
--- STORAGE SERVICE (DataStore wrapper with retries)
--- ========================================
-
-local StorageService = {}
-StorageService.__index = StorageService
-
--- One wrapper around ONE DataStore. Keys are separated inside it.
-function StorageService.new(storeName)
-	local self = setmetatable({}, StorageService)
-	self.Store = RealDataStoreService:GetDataStore(storeName or Config.DataStoreName)
-	self.MaxRetries = Config.MaxRetries
-	self.RetryDelay = Config.RetryDelay
-	return self
-end
-
--- Runs fn with retries. Returns (success, resultOrError).
-function StorageService:_retry(fn)
-	local lastErr
-	for attempt = 1, self.MaxRetries do
-		local ok, result = pcall(fn)
-		if ok then
-			return true, result
-		end
-		lastErr = result
-		if attempt < self.MaxRetries then
-			task.wait(self.RetryDelay)
-		end
-	end
-	return false, lastErr
-end
-
--- Returns (success, value). value is nil if the key has no data yet.
-function StorageService:Get(key)
-	return self:_retry(function()
-		return self.Store:GetAsync(key)
-	end)
-end
-
--- Returns (success, errorIfAny).
-function StorageService:Set(key, value)
-	return self:_retry(function()
-		self.Store:SetAsync(key, value)
-	end)
-end
-
-function StorageService:Delete(key)
-	return self:_retry(function()
-		self.Store:RemoveAsync(key)
-	end)
-end
-
--- One shared storage object for all players.
-local storage = nil
-local function getStorage()
-	if not storage then
-		storage = StorageService.new()
-	end
-	return storage
-end
-
--- ========================================
--- ACCOUNT MANAGER
+-- ACCOUNT MANAGER (in-memory only)
 -- ========================================
 
 local AccountManager = {}
@@ -239,75 +172,20 @@ end
 function AccountManager.new(player)
 	local self = setmetatable({}, AccountManager)
 	self.Player = player
-	self.Key = "Player_" .. player.UserId
 	self.Accounts = {}
 	self.CurrentIndex = 1
-	self.Dirty = false   -- true when there are unsaved changes
-	self.Running = false
-	self.LoadFailed = false
 	return self
 end
 
 function AccountManager:Initialize()
-	local ok, data = getStorage():Get(self.Key)
-
-	if ok and type(data) == "table" and type(data.Accounts) == "table" and #data.Accounts > 0 then
-		self.Accounts = data.Accounts
-		self.CurrentIndex = Utils.Clamp(data.CurrentIndex or 1, 1, #self.Accounts)
-		print(("Loaded %d account(s) for %s"):format(#self.Accounts, self.Player.Name))
-	else
-		if not ok then
-			-- Don't overwrite real saved data if loading just failed.
-			warn("Could not load accounts for " .. self.Player.Name .. ": " .. tostring(data))
-			self.LoadFailed = true
-		end
-		-- Default account is created ONLY when there is nothing saved.
-		table.insert(self.Accounts, newAccount(self.Player.Name, self.Player.DisplayName))
-		self.CurrentIndex = 1
-		self.Dirty = true
-	end
-
-	self:StartAutoSave()
+	table.insert(self.Accounts, newAccount(self.Player.Name, self.Player.DisplayName))
+	self.CurrentIndex = 1
 	return self
-end
-
-function AccountManager:Save()
-	if self.LoadFailed then
-		return false -- never overwrite data we failed to load
-	end
-	local ok, err = getStorage():Set(self.Key, {
-		Accounts = self.Accounts,
-		CurrentIndex = self.CurrentIndex,
-	})
-	if ok then
-		self.Dirty = false
-	else
-		warn("Error saving accounts: " .. tostring(err))
-	end
-	return ok
-end
-
-function AccountManager:StartAutoSave()
-	if self.Running then
-		return
-	end
-	self.Running = true
-	task.spawn(function()
-		while self.Running do
-			task.wait(Config.AutoSaveInterval)
-			if self.Running and self.Dirty then
-				self:Save()
-			end
-		end
-	end)
 end
 
 -- Call when the player leaves.
 function AccountManager:Destroy()
-	self.Running = false
-	if self.Dirty then
-		self:Save()
-	end
+	table.clear(self.Accounts)
 end
 
 function AccountManager:CreateAccount(name)
@@ -320,7 +198,6 @@ function AccountManager:CreateAccount(name)
 	local account = newAccount(accountName)
 	table.insert(self.Accounts, account)
 	self.CurrentIndex = #self.Accounts
-	self.Dirty = true
 	return account
 end
 
@@ -339,11 +216,10 @@ function AccountManager:RemoveAccount(index)
 		self.CurrentIndex = self.CurrentIndex - 1
 	end
 	self.CurrentIndex = Utils.Clamp(self.CurrentIndex, 1, #self.Accounts)
-	self.Dirty = true
 	return true
 end
 
--- Selects a different saved account. Returns the account, or nil if invalid.
+-- Selects a different account. Returns the account, or nil if invalid.
 function AccountManager:SwitchAccount(index)
 	if type(index) ~= "number" or index < 1 or index > #self.Accounts then
 		return nil
@@ -351,7 +227,6 @@ function AccountManager:SwitchAccount(index)
 	self.CurrentIndex = index
 	local account = self.Accounts[index]
 	account.LastLogin = os.time()
-	self.Dirty = true
 	return account
 end
 
@@ -410,11 +285,3 @@ Players.PlayerRemoving:Connect(onPlayerRemoving)
 for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(onPlayerAdded, player)
 end
-
--- Save everyone when the server shuts down.
-game:BindToClose(function()
-	for player, manager in pairs(managers) do
-		manager:Destroy()
-		managers[player] = nil
-	end
-end)
