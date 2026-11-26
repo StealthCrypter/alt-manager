@@ -808,9 +808,11 @@ local pingEnabled = false
 local pingId = 0
 local pingOptions = { Walk = true, Jump = true, Click = false }
 
-local pingToggle = pingButton("Ping: OFF", 12)
+local pingToggle = pingButton("Ping Alts: OFF", 12)
 pingToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
-local pingInterval = pingBox("Seconds", 54, "10")
+local pingSelf = pingButton("Ping Me: OFF", 54)
+pingSelf.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+local pingInterval = pingBox("Seconds", 96, "10")
 
 local optionButtons = {}
 local optionLabels = { Walk = "Walk", Jump = "Jump", Click = "Click" }
@@ -820,7 +822,7 @@ local function paintOption(name)
 	optionButtons[name].BackgroundColor3 = on and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(60, 60, 68)
 end
 for index, name in ipairs({ "Walk", "Jump", "Click" }) do
-	optionButtons[name] = pingButton("", 96 + (index - 1) * 40)
+	optionButtons[name] = pingButton("", 138 + (index - 1) * 40)
 	paintOption(name)
 	optionButtons[name].Activated:Connect(function()
 		pingOptions[name] = not pingOptions[name]
@@ -853,8 +855,8 @@ setPing = function(value)
 	end
 	pingEnabled = value
 	pingId += 1
-	pingToggle.Text = value and "Ping: ON" or "Ping: OFF"
-	pingToggle.BackgroundColor3 = value and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
+	pingSelf.Text = value and "Ping Me: ON" or "Ping Me: OFF"
+	pingSelf.BackgroundColor3 = value and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
 
 	if value then
 		local myId = pingId
@@ -880,12 +882,12 @@ end)
 
 local relayOn = false
 pingToggle.Activated:Connect(function()
-	if hasRole(player.Name, "Alt") or #accounts == 0 then
-		setPing(not pingEnabled)
-	else
-		relayOn = not relayOn
-		relayCommand(PREFIX .. "ping " .. (relayOn and "on" or "off"))
-	end
+	relayOn = not relayOn
+	relayCommand(PREFIX .. "ping " .. (relayOn and "on" or "off"))
+end)
+
+pingSelf.Activated:Connect(function()
+	setPing(not pingEnabled)
 end)
 
 local followPage = Instance.new("Frame")
@@ -1259,15 +1261,13 @@ task.spawn(function()
 			end
 		end
 
-		local isMain = not (hasRole(player.Name, "Alt") or #accounts == 0)
-		local pingOn = isMain and relayOn or pingEnabled
+		local pingOn = pingEnabled or relayOn
 		footer.Text = ("Cmds %s  |  %dM %dA  |  Ping %s"):format(
 			commandEnabled and "ON" or "OFF", mains, alts, pingOn and "ON" or "OFF"
 		)
 
-		pingToggle.Text = isMain and (relayOn and "Ping Alts: ON" or "Ping Alts: OFF")
-			or (pingEnabled and "Ping: ON" or "Ping: OFF")
-		pingToggle.BackgroundColor3 = pingOn and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
+		pingToggle.Text = relayOn and "Ping Alts: ON" or "Ping Alts: OFF"
+		pingToggle.BackgroundColor3 = relayOn and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(110, 65, 65)
 
 		if hasRole(player.Name, "Main") then
 			followStatus.Text = "Main"
