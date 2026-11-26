@@ -1367,7 +1367,7 @@ toggleGriefButton.Activated:Connect(function()
 		stopGrief()
 	else
 		startGrief()
-	end
+		end
 end)
 
 gui.Destroying:Connect(function()
@@ -1375,6 +1375,396 @@ gui.Destroying:Connect(function()
 		stopGrief()
 	end
 end)
+-- ============ LAG MACHINE ============
+local lagMachineFrame = Instance.new("Frame")
+lagMachineFrame.Position = UDim2.fromOffset(10, 130)
+lagMachineFrame.Size = UDim2.new(1, -20, 0, 180)
+lagMachineFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+lagMachineFrame.BorderSizePixel = 0
+lagMachineFrame.Parent = destructionPage
+round(lagMachineFrame)
+
+local lagTitle = Instance.new("TextLabel")
+lagTitle.Size = UDim2.new(1, 0, 0, 25)
+lagTitle.BackgroundTransparency = 1
+lagTitle.Text = "🌀 Lag Machine"
+lagTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
+lagTitle.Font = Enum.Font.GothamBold
+lagTitle.TextSize = 14
+lagTitle.TextXAlignment = Enum.TextXAlignment.Left
+lagTitle.Parent = lagMachineFrame
+
+local lagSelectBtn = Instance.new("TextButton")
+lagSelectBtn.Position = UDim2.fromOffset(10, 30)
+lagSelectBtn.Size = UDim2.new(1, -20, 0, 28)
+lagSelectBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+lagSelectBtn.BorderSizePixel = 0
+lagSelectBtn.Text = "Select Block"
+lagSelectBtn.TextColor3 = Color3.new(1, 1, 1)
+lagSelectBtn.Font = Enum.Font.GothamBold
+lagSelectBtn.TextSize = 13
+lagSelectBtn.Parent = lagMachineFrame
+round(lagSelectBtn)
+
+local lagStartBtn = Instance.new("TextButton")
+lagStartBtn.Position = UDim2.fromOffset(10, 64)
+lagStartBtn.Size = UDim2.new(0.5, -15, 0, 28)
+lagStartBtn.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
+lagStartBtn.BorderSizePixel = 0
+lagStartBtn.Text = "Start Spam"
+lagStartBtn.TextColor3 = Color3.new(1, 1, 1)
+lagStartBtn.Font = Enum.Font.GothamBold
+lagStartBtn.TextSize = 13
+lagStartBtn.Parent = lagMachineFrame
+round(lagStartBtn)
+
+local lagStopBtn = Instance.new("TextButton")
+lagStopBtn.Position = UDim2.new(0.5, 5, 0, 64)
+lagStopBtn.Size = UDim2.new(0.5, -15, 0, 28)
+lagStopBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+lagStopBtn.BorderSizePixel = 0
+lagStopBtn.Text = "Stop Spam"
+lagStopBtn.TextColor3 = Color3.new(1, 1, 1)
+lagStopBtn.Font = Enum.Font.GothamBold
+lagStopBtn.TextSize = 13
+lagStopBtn.Parent = lagMachineFrame
+round(lagStopBtn)
+
+local lagStatus = Instance.new("TextLabel")
+lagStatus.Position = UDim2.fromOffset(10, 100)
+lagStatus.Size = UDim2.new(1, -20, 0, 20)
+lagStatus.BackgroundTransparency = 1
+lagStatus.Text = "Status: Idle"
+lagStatus.TextColor3 = Color3.fromRGB(170, 170, 175)
+lagStatus.Font = Enum.Font.Gotham
+lagStatus.TextSize = 12
+lagStatus.TextXAlignment = Enum.TextXAlignment.Left
+lagStatus.Parent = lagMachineFrame
+
+local lagBlockCount = Instance.new("TextLabel")
+lagBlockCount.Position = UDim2.fromOffset(10, 122)
+lagBlockCount.Size = UDim2.new(1, -20, 0, 20)
+lagBlockCount.BackgroundTransparency = 1
+lagBlockCount.Text = "Blocks: 0"
+lagBlockCount.TextColor3 = Color3.fromRGB(170, 170, 175)
+lagBlockCount.Font = Enum.Font.Gotham
+lagBlockCount.TextSize = 12
+lagBlockCount.TextXAlignment = Enum.TextXAlignment.Left
+lagBlockCount.Parent = lagMachineFrame
+
+local lagBlackholeBtn = Instance.new("TextButton")
+lagBlackholeBtn.Position = UDim2.fromOffset(10, 148)
+lagBlackholeBtn.Size = UDim2.new(1, -20, 0, 28)
+lagBlackholeBtn.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
+lagBlackholeBtn.BorderSizePixel = 0
+lagBlackholeBtn.Text = "Enable Blackhole"
+lagBlackholeBtn.TextColor3 = Color3.new(1, 1, 1)
+lagBlackholeBtn.Font = Enum.Font.GothamBold
+lagBlackholeBtn.TextSize = 13
+lagBlackholeBtn.Parent = lagMachineFrame
+round(lagBlackholeBtn)
+
+-- Lag Machine Logic
+local lagMachine = {
+    isSelecting = false,
+    selectedBlock = nil,
+    isSpamming = false,
+    spamLoop = nil,
+    blockCount = 0,
+    blackholeEnabled = false,
+    bodyPositions = {},
+    highlight = nil,
+}
+
+local function findDeleteToolsLag()
+    local dtools = {}
+    for _, v in pairs(player.Backpack:GetChildren()) do
+        if v:IsA("Tool") and v.Name == "Delete" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
+            table.insert(dtools, {bt = v, e = v.Script.Event})
+        end
+    end
+    if player.Character then
+        for _, v in pairs(player.Character:GetChildren()) do
+            if v:IsA("Tool") and v.Name == "Delete" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
+                table.insert(dtools, {bt = v, e = v.Script.Event})
+            end
+        end
+    end
+    return dtools
+end
+
+local function findBuildToolsLag()
+    local btools = {}
+    for _, v in pairs(player.Backpack:GetChildren()) do
+        if v:IsA("Tool") and v.Name == "Build" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
+            table.insert(btools, {bt = v, e = v.Script.Event})
+        end
+    end
+    if player.Character then
+        for _, v in pairs(player.Character:GetChildren()) do
+            if v:IsA("Tool") and v.Name == "Build" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
+                table.insert(btools, {bt = v, e = v.Script.Event})
+            end
+        end
+    end
+    return btools
+end
+
+local function findPaintToolsLag()
+    local ptools = {}
+    for _, v in pairs(player.Backpack:GetChildren()) do
+        if v:IsA("Tool") and v.Name == "Paint" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
+            table.insert(ptools, {bt = v, e = v.Script.Event})
+        end
+    end
+    if player.Character then
+        for _, v in pairs(player.Character:GetChildren()) do
+            if v:IsA("Tool") and v.Name == "Paint" and v:FindFirstChild("Script") and v.Script:FindFirstChild("Event") then
+                table.insert(ptools, {bt = v, e = v.Script.Event})
+            end
+        end
+    end
+    return ptools
+end
+
+local function highlightBlock(block)
+    if lagMachine.highlight then lagMachine.highlight:Destroy() end
+    local h = Instance.new("Highlight")
+    h.Adornee = block
+    h.FillColor = Color3.fromRGB(255, 255, 0)
+    h.OutlineColor = Color3.fromRGB(255, 200, 0)
+    h.FillTransparency = 0.5
+    h.OutlineTransparency = 0
+    h.Parent = block
+    lagMachine.highlight = h
+end
+
+local function clearHighlight()
+    if lagMachine.highlight then
+        lagMachine.highlight:Destroy()
+        lagMachine.highlight = nil
+    end
+end
+
+-- Select block mode
+lagSelectBtn.Activated:Connect(function()
+    if lagMachine.isSelecting then
+        lagMachine.isSelecting = false
+        lagSelectBtn.Text = "Select Block"
+        lagSelectBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        clearHighlight()
+        return
+    end
+    lagMachine.isSelecting = true
+    lagSelectBtn.Text = "Click a block..."
+    lagSelectBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+    
+    local mouse = player:GetMouse()
+    local conn
+    conn = mouse.Button1Down:Connect(function()
+        if not lagMachine.isSelecting then conn:Disconnect() return end
+        local target = mouse.Target
+        if target and target:IsA("BasePart") and target.Name == "Brick" then
+            local bricksFolder = workspace:FindFirstChild("Bricks")
+            if bricksFolder and target.Parent and target.Parent.Parent == bricksFolder then
+                lagMachine.selectedBlock = target
+                highlightBlock(target)
+                lagMachine.isSelecting = false
+                lagSelectBtn.Text = "Block Selected ✓"
+                lagSelectBtn.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
+                conn:Disconnect()
+            end
+        end
+    end)
+    task.delay(10, function()
+        if lagMachine.isSelecting then
+            lagMachine.isSelecting = false
+            lagSelectBtn.Text = "Select Block"
+            lagSelectBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+            conn:Disconnect()
+        end
+    end)
+end)
+
+-- Start spam
+lagStartBtn.Activated:Connect(function()
+    if not lagMachine.selectedBlock or not lagMachine.selectedBlock:IsDescendantOf(workspace) then
+        lagStatus.Text = "Status: No block selected!"
+        task.wait(2)
+        lagStatus.Text = "Status: Idle"
+        return
+    end
+    
+    local buildTools = findBuildToolsLag()
+    if #buildTools == 0 then
+        lagStatus.Text = "Status: No Build tool!"
+        task.wait(2)
+        lagStatus.Text = "Status: Idle"
+        return
+    end
+    
+    lagMachine.isSpamming = true
+    lagMachine.blockCount = 0
+    lagStartBtn.Text = "Spamming..."
+    lagStartBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+    lagStatus.Text = "Status: Spamming..."
+    
+    local block = lagMachine.selectedBlock
+    local bt = buildTools[1]
+    
+    lagMachine.spamLoop = task.spawn(function()
+        local counter = 0
+        while lagMachine.isSpamming do
+            if not block:IsDescendantOf(workspace) then
+                lagMachine.isSpamming = false
+                break
+            end
+            
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp and bt.e then
+                pcall(function()
+                    bt.e:FireServer(block, Enum.NormalId.Top, hrp.Position, "detailed")
+                end)
+                lagMachine.blockCount = lagMachine.blockCount + 1
+                lagBlockCount.Text = "Blocks: " .. lagMachine.blockCount
+            end
+            
+            counter = counter + 1
+            if counter % 50 == 0 then
+                -- Refresh tool
+                if bt.bt.Parent == player.Backpack then
+                    bt.bt.Parent = player.Character
+                    task.wait(0.1)
+                    bt.bt.Parent = player.Backpack
+                    task.wait(0.1)
+                    bt.bt.Parent = player.Character
+                end
+            end
+            
+            task.wait(0.05)
+        end
+    end)
+end)
+
+-- Stop spam
+lagStopBtn.Activated:Connect(function()
+    lagMachine.isSpamming = false
+    if lagMachine.spamLoop then
+        task.cancel(lagMachine.spamLoop)
+        lagMachine.spamLoop = nil
+    end
+    lagStartBtn.Text = "Start Spam"
+    lagStartBtn.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
+    lagStatus.Text = "Status: Stopped (" .. lagMachine.blockCount .. " blocks)"
+    
+    -- Return tools to backpack
+    for _, v in pairs(player.Character:GetChildren()) do
+        if v:IsA("Tool") and (v.Name == "Build" or v.Name == "Paint") then
+            v.Parent = player.Backpack
+        end
+    end
+end)
+
+-- Blackhole toggle
+lagBlackholeBtn.Activated:Connect(function()
+    lagMachine.blackholeEnabled = not lagMachine.blackholeEnabled
+    if lagMachine.blackholeEnabled then
+        lagBlackholeBtn.Text = "Disable Blackhole"
+        lagBlackholeBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+        lagStatus.Text = "Status: Blackhole ON"
+        
+        -- Create handles part
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local handles = Instance.new("Part")
+            handles.Name = "BlackholeHandles"
+            handles.Size = Vector3.new(2, 2, 2)
+            handles.Position = hrp.Position + Vector3.new(0, 10, 0)
+            handles.Anchored = true
+            handles.CanCollide = false
+            handles.Transparency = 0.5
+            handles.Material = Enum.Material.ForceField
+            handles.BrickColor = BrickColor.new("Bright blue")
+            handles.Parent = workspace
+            
+            local sel = Instance.new("SelectionBox")
+            sel.Adornee = handles
+            sel.LineThickness = 0.05
+            sel.Color3 = Color3.fromRGB(0, 170, 255)
+            sel.Parent = handles
+            
+            lagMachine.handles = handles
+            
+            -- Attract all unanchored bricks with Drag
+            local attractLoop = task.spawn(function()
+                while lagMachine.blackholeEnabled do
+                    if handles and handles:IsDescendantOf(workspace) then
+                        local targetPos = handles.Position
+                        for _, obj in ipairs(workspace:GetDescendants()) do
+                            if obj:IsA("BasePart") and not obj.Anchored and obj:FindFirstChild("Drag") then
+                                -- Check it's not our character
+                                local isCharacterPart = false
+                                if player.Character then
+                                    for _, charPart in ipairs(player.Character:GetDescendants()) do
+                                        if charPart == obj then isCharacterPart = true break end
+                                    end
+                                end
+                                if not isCharacterPart then
+                                    local bp = obj:FindFirstChild("BlackholeBP")
+                                    if not bp then
+                                        bp = Instance.new("BodyPosition")
+                                        bp.Name = "BlackholeBP"
+                                        bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                                        bp.P = 100000
+                                        bp.D = 1000
+                                        bp.Parent = obj
+                                    end
+                                    bp.Position = targetPos
+                                end
+                            end
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+            lagMachine.attractLoop = attractLoop
+        end
+    else
+        lagBlackholeBtn.Text = "Enable Blackhole"
+        lagBlackholeBtn.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
+        lagStatus.Text = "Status: Blackhole OFF"
+        
+        if lagMachine.attractLoop then
+            task.cancel(lagMachine.attractLoop)
+            lagMachine.attractLoop = nil
+        end
+        if lagMachine.handles then
+            lagMachine.handles:Destroy()
+            lagMachine.handles = nil
+        end
+        -- Release all blocks
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                local bp = obj:FindFirstChild("BlackholeBP")
+                if bp then bp:Destroy() end
+            end
+        end
+    end
+end)
+
+gui.Destroying:Connect(function()
+    if lagMachine.isSpamming then
+        lagMachine.isSpamming = false
+        if lagMachine.spamLoop then task.cancel(lagMachine.spamLoop) end
+    end
+    if lagMachine.blackholeEnabled then
+        lagMachine.blackholeEnabled = false
+        if lagMachine.attractLoop then task.cancel(lagMachine.attractLoop) end
+        if lagMachine.handles then lagMachine.handles:Destroy() end
+    end
+    clearHighlight()
+end)
+-- ============ END LAG MACHINE ============
 -- ==========================================
 
 title.Size = UDim2.new(1, 0, 0, 26)
