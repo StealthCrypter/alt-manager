@@ -1092,7 +1092,7 @@ stopLoopButton.Parent = actionsPage
 stopLoopButton.Position = UDim2.new(0.5, 5, 0, 218)
 
 -- ==========================================
--- MOVEMENT HACKS (Actions Tab) - FIXED
+-- MOVEMENT HACKS (Actions Tab)
 -- ==========================================
 local hacksFrame = Instance.new("Frame")
 hacksFrame.Position = UDim2.fromOffset(10, 260)
@@ -1112,7 +1112,6 @@ hacksTitle.TextSize = 14
 hacksTitle.TextXAlignment = Enum.TextXAlignment.Left
 hacksTitle.Parent = hacksFrame
 
--- Fixed makeHackButton: creates buttons directly, NOT using makeButton()
 local function makeHackButton(text, yPos, colorOn, colorOff, onFunc, offFunc)
 	local btn = Instance.new("TextButton")
 	btn.Position = UDim2.fromOffset(10, yPos)
@@ -1123,7 +1122,7 @@ local function makeHackButton(text, yPos, colorOn, colorOff, onFunc, offFunc)
 	btn.TextColor3 = Color3.new(1, 1, 1)
 	btn.Font = Enum.Font.GothamBold
 	btn.TextSize = 12
-	btn.Parent = hacksFrame  -- ← Parents to hacksFrame, NOT managerPage
+	btn.Parent = hacksFrame
 	round(btn)
 	
 	local enabled = false
@@ -1142,7 +1141,6 @@ local function makeHackButton(text, yPos, colorOn, colorOff, onFunc, offFunc)
 	return btn
 end
 
--- Noclip
 local noclipConn = nil
 makeHackButton("Noclip", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
 	function()
@@ -1166,7 +1164,6 @@ makeHackButton("Noclip", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110
 	end
 )
 
--- Fly
 local flyConn = nil
 local flyEnabled = false
 makeHackButton("Fly", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
@@ -1227,7 +1224,6 @@ makeHackButton("Fly", 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 1
 	end
 )
 
--- Speed
 local speedConn = nil
 makeHackButton("Speed 50", 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
 	function()
@@ -1249,7 +1245,6 @@ makeHackButton("Speed 50", 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 1
 	end
 )
 
--- Jump Power
 local jumpConn = nil
 makeHackButton("Jump 100", 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
 	function()
@@ -1281,6 +1276,7 @@ gui.Destroying:Connect(function()
 	if jumpConn then jumpConn:Disconnect() end
 end)
 -- ==========================================
+
 local settingsPage = Instance.new("Frame")
 settingsPage.Position = UDim2.fromOffset(0, 72)
 settingsPage.Size = UDim2.new(1, 0, 1, -72)
@@ -1359,9 +1355,17 @@ chatSpyTitle.TextSize = 14
 chatSpyTitle.TextXAlignment = Enum.TextXAlignment.Left
 chatSpyTitle.Parent = chatSpyFrame
 
-local chatSpyToggle = makeButton("Chat Spy: OFF", UDim2.fromOffset(10, 30), UDim2.new(1, -20, 0, 30))
+local chatSpyToggle = Instance.new("TextButton")
+chatSpyToggle.Position = UDim2.fromOffset(10, 30)
+chatSpyToggle.Size = UDim2.new(1, -20, 0, 30)
 chatSpyToggle.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+chatSpyToggle.BorderSizePixel = 0
+chatSpyToggle.Text = "Chat Spy: OFF"
+chatSpyToggle.TextColor3 = Color3.new(1, 1, 1)
+chatSpyToggle.Font = Enum.Font.GothamBold
+chatSpyToggle.TextSize = 13
 chatSpyToggle.Parent = chatSpyFrame
+round(chatSpyToggle)
 
 local chatLog = Instance.new("ScrollingFrame")
 chatLog.Position = UDim2.fromOffset(10, 65)
@@ -1433,9 +1437,6 @@ gui.Destroying:Connect(function()
 end)
 -- ==========================================
 
--- ==========================================
--- DESTRUCTION PAGE & GRIEF TOOL INTEGRATION
--- ==========================================
 local destructionPage = Instance.new("Frame")
 destructionPage.Position = UDim2.fromOffset(0, 72)
 destructionPage.Size = UDim2.new(1, 0, 1, -72)
@@ -1659,7 +1660,6 @@ gui.Destroying:Connect(function()
 		stopGrief()
 	end
 end)
--- ==========================================
 
 title.Size = UDim2.new(1, 0, 0, 26)
 title.TextSize = 13
