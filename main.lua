@@ -1036,12 +1036,18 @@ stopFollowButton.Activated:Connect(function()
 	end
 end)
 
-local actionsPage = Instance.new("Frame")
+-- ==========================================
+-- ACTIONS PAGE (Changed to ScrollingFrame for Hacks)
+-- ==========================================
+local actionsPage = Instance.new("ScrollingFrame")
 actionsPage.Position = UDim2.fromOffset(0, 72)
 actionsPage.Size = UDim2.new(1, 0, 1, -72)
 actionsPage.BackgroundTransparency = 1
 actionsPage.BorderSizePixel = 0
 actionsPage.Visible = false
+actionsPage.ScrollBarThickness = 4
+actionsPage.ScrollBarImageColor3 = Color3.fromRGB(88, 101, 242)
+actionsPage.CanvasSize = UDim2.new(0, 0, 0, 450)
 actionsPage.Parent = frame
 
 sayInput.Parent = actionsPage
@@ -1277,12 +1283,18 @@ gui.Destroying:Connect(function()
 end)
 -- ==========================================
 
-local settingsPage = Instance.new("Frame")
+-- ==========================================
+-- SETTINGS PAGE (Changed to ScrollingFrame for Chat Spy)
+-- ==========================================
+local settingsPage = Instance.new("ScrollingFrame")
 settingsPage.Position = UDim2.fromOffset(0, 72)
 settingsPage.Size = UDim2.new(1, 0, 1, -72)
 settingsPage.BackgroundTransparency = 1
 settingsPage.BorderSizePixel = 0
 settingsPage.Visible = false
+settingsPage.ScrollBarThickness = 4
+settingsPage.ScrollBarImageColor3 = Color3.fromRGB(88, 101, 242)
+settingsPage.CanvasSize = UDim2.new(0, 0, 0, 450)
 settingsPage.Parent = frame
 
 local function settingsLabel(text, y, isHeading)
@@ -1437,6 +1449,9 @@ gui.Destroying:Connect(function()
 end)
 -- ==========================================
 
+-- ==========================================
+-- DESTRUCTION PAGE & GRIEF TOOL INTEGRATION
+-- ==========================================
 local destructionPage = Instance.new("Frame")
 destructionPage.Position = UDim2.fromOffset(0, 72)
 destructionPage.Size = UDim2.new(1, 0, 1, -72)
@@ -1571,6 +1586,7 @@ local function startGrief()
 	griefLoop = task.spawn(function()
 		local dti = 0
 		local lastRefreshTime = 0
+		-- FIXED: safely call shared.DeleteToolRefresh only if it is a function
 		if type(shared.DeleteToolRefresh) == "function" then
 			shared.DeleteToolRefresh()
 		end
@@ -1660,6 +1676,7 @@ gui.Destroying:Connect(function()
 		stopGrief()
 	end
 end)
+-- ==========================================
 
 title.Size = UDim2.new(1, 0, 0, 26)
 title.TextSize = 13
