@@ -1092,7 +1092,7 @@ stopLoopButton.Parent = actionsPage
 stopLoopButton.Position = UDim2.new(0.5, 5, 0, 218)
 
 -- ==========================================
--- MOVEMENT HACKS (Actions Tab)
+-- MOVEMENT HACKS (Actions Tab) - FIXED
 -- ==========================================
 local hacksFrame = Instance.new("Frame")
 hacksFrame.Position = UDim2.fromOffset(10, 260)
@@ -1112,9 +1112,20 @@ hacksTitle.TextSize = 14
 hacksTitle.TextXAlignment = Enum.TextXAlignment.Left
 hacksTitle.Parent = hacksFrame
 
+-- Fixed makeHackButton: creates buttons directly, NOT using makeButton()
 local function makeHackButton(text, yPos, colorOn, colorOff, onFunc, offFunc)
-	local btn = makeButton(text, UDim2.fromOffset(10, yPos), UDim2.fromOffset(150, 28))
+	local btn = Instance.new("TextButton")
+	btn.Position = UDim2.fromOffset(10, yPos)
+	btn.Size = UDim2.fromOffset(150, 28)
 	btn.BackgroundColor3 = colorOff
+	btn.BorderSizePixel = 0
+	btn.Text = text
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 12
+	btn.Parent = hacksFrame  -- ← Parents to hacksFrame, NOT managerPage
+	round(btn)
+	
 	local enabled = false
 	btn.Activated:Connect(function()
 		enabled = not enabled
@@ -1270,7 +1281,6 @@ gui.Destroying:Connect(function()
 	if jumpConn then jumpConn:Disconnect() end
 end)
 -- ==========================================
-
 local settingsPage = Instance.new("Frame")
 settingsPage.Position = UDim2.fromOffset(0, 72)
 settingsPage.Size = UDim2.new(1, 0, 1, -72)
