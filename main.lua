@@ -1473,10 +1473,10 @@ selectTargetsBtn.TextSize = 13
 selectTargetsBtn.Parent = destructionPage
 round(selectTargetsBtn)
 
--- Dropdown Frame (Hidden by default)
+-- Dropdown Frame - PARENTED TO FRAME (not destructionPage) to avoid clipping
 local dropdownFrame = Instance.new("ScrollingFrame")
 dropdownFrame.Position = UDim2.fromOffset(10, 50)
-dropdownFrame.Size = UDim2.new(1, -20, 0, 0) -- Height updates dynamically
+dropdownFrame.Size = UDim2.new(1, -20, 0, 150)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
 dropdownFrame.BorderSizePixel = 0
 dropdownFrame.ScrollBarThickness = 4
@@ -1485,7 +1485,8 @@ dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 dropdownFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 dropdownFrame.Visible = false
 dropdownFrame.ZIndex = 10
-dropdownFrame.Parent = destructionPage
+dropdownFrame.ClipsDescendants = false
+dropdownFrame.Parent = frame  -- ← PARENTED TO FRAME, NOT DESTRUCTION PAGE
 round(dropdownFrame)
 
 local dropdownLayout = Instance.new("UIListLayout")
@@ -1501,7 +1502,7 @@ dropdownPadding.PaddingRight = UDim.new(0, 4)
 dropdownPadding.Parent = dropdownFrame
 
 local toggleGriefButton = Instance.new("TextButton")
-toggleGriefButton.Position = UDim2.fromOffset(10, 54) -- Will be pushed down by dropdown
+toggleGriefButton.Position = UDim2.fromOffset(10, 54)
 toggleGriefButton.Size = UDim2.new(1, -20, 0, 32)
 toggleGriefButton.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
 toggleGriefButton.BorderSizePixel = 0
@@ -1524,11 +1525,11 @@ griefStatusLabel.Text = ""
 griefStatusLabel.Parent = destructionPage
 
 -- ==========================================
--- LOGIC: Selection, Highlighting & Griefing
+-- LOGIC
 -- ==========================================
 local isGriefing = false
 local griefLoop = nil
-local selectedTargets = {} -- Stores selected names, or { ["ALL"] = true }
+local selectedTargets = {}
 local activeHighlights = {}
 local isDropdownOpen = false
 
@@ -1536,7 +1537,6 @@ local TEXT_START = "Start Grief"
 local TEXT_STOP = "Stop Grief"
 local ws = 0.05
 
--- Helper to create dropdown buttons
 local function createDropdownButton(text, isSelected)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, 0, 0, 28)
@@ -1552,7 +1552,6 @@ local function createDropdownButton(text, isSelected)
 	return btn
 end
 
--- Update the main button text
 local function updateSelectBtnText()
 	if selectedTargets["ALL"] then
 		selectTargetsBtn.Text = "Select Targets: ALL"
@@ -1565,7 +1564,6 @@ local function updateSelectBtnText()
 	end
 end
 
--- Highlight Logic
 local function clearHighlights()
 	for _, h in pairs(activeHighlights) do 
 		pcall(function() h:Destroy() end) 
@@ -1583,7 +1581,6 @@ local function applyHighlights()
 	for _, folder in pairs(bricksFolder:GetChildren()) do
 		local shouldHighlight = selectAll or selectedTargets[folder.Name]
 		if shouldHighlight then
-			-- Highlight the whole folder (much better performance than per-brick)
 			local h = Instance.new("Highlight")
 			h.Adornee = folder
 			h.FillColor = Color3.fromRGB(255, 0, 0)
@@ -1597,13 +1594,11 @@ local function applyHighlights()
 	end
 end
 
--- Populate Dropdown
 local function populateDropdown()
 	for _, child in pairs(dropdownFrame:GetChildren()) do
 		if child:IsA("TextButton") then child:Destroy() end
 	end
 
-	-- "All Players" Button
 	local allBtn = createDropdownButton("All Players", selectedTargets["ALL"])
 	allBtn.Activated:Connect(function()
 		if selectedTargets["ALL"] then
@@ -1616,38 +1611,38 @@ local function populateDropdown()
 		applyHighlights()
 	end)
 
-	-- Individual Player Buttons
 	for _, plr in pairs(Players:GetPlayers()) do
-		local btn = createDropdownButton(plr.Name, selectedTargets[plr.Name])
-		btn.Activated:Connect(function()
-			selectedTargets[plr.Name] = not selectedTargets[plr.Name]
-			selectedTargets["ALL"] = nil -- Deselect ALL if picking manually
-			populateDropdown()
-			updateSelectBtnText()
-			applyHighlights()
-		end)
+		if plr ~= player then
+			local btn = createDropdownButton(plr.Name, selectedTargets[plr.Name])
+			btn.Activated:Connect(function()
+				selectedTargets[plr.Name] = not selectedTargets[plr.Name]
+				selectedTargets["ALL"] = nil
+				populateDropdown()
+				updateSelectBtnText()
+				applyHighlights()
+			end)
+		end
 	end
 end
 
--- Toggle Dropdown Visibility
 selectTargetsBtn.Activated:Connect(function()
 	isDropdownOpen = not isDropdownOpen
 	dropdownFrame.Visible = isDropdownOpen
-	-- Push the grief button down when dropdown is open
 	if isDropdownOpen then
-		toggleGriefButton.Position = UDim2.fromOffset(10, 50 + dropdownFrame.AbsoluteSize.Y + 10)
-		griefStatusLabel.Position = UDim2.fromOffset(10, 50 + dropdownFrame.AbsoluteSize.Y + 50)
+		populateDropdown()
+		-- Push grief button down
+		toggleGriefButton.Position = UDim2.fromOffset(10, 220)
+		griefStatusLabel.Position = UDim2.fromOffset(10, 260)
 	else
 		toggleGriefButton.Position = UDim2.fromOffset(10, 54)
 		griefStatusLabel.Position = UDim2.fromOffset(10, 96)
 	end
 end)
 
--- Auto-update when players join/leave or bricks change
-Players.PlayerAdded:Connect(function() populateDropdown() end)
+Players.PlayerAdded:Connect(function() if isDropdownOpen then populateDropdown() end end)
 Players.PlayerRemoving:Connect(function() 
-	selectedTargets["ALL"] = nil -- Reset ALL to avoid highlighting ghosts
-	populateDropdown() 
+	selectedTargets["ALL"] = nil
+	if isDropdownOpen then populateDropdown() end
 	applyHighlights() 
 end)
 
@@ -1657,18 +1652,16 @@ if bricksFolder then
 	bricksFolder.ChildRemoved:Connect(applyHighlights)
 end
 
--- Initialize
 updateSelectBtnText()
-populateDropdown()
 applyHighlights()
 
--- Griefing Logic (Updated to use dropdown)
+-- Griefing Logic
 local function getSelectedPlayers()
 	local players = {}
 	if selectedTargets["ALL"] then
-		local bricksFolder = workspace:FindFirstChild("Bricks")
-		if bricksFolder then
-			for _, folder in pairs(bricksFolder:GetChildren()) do
+		local bf = workspace:FindFirstChild("Bricks")
+		if bf then
+			for _, folder in pairs(bf:GetChildren()) do
 				players[folder.Name] = true
 			end
 		end
@@ -1835,6 +1828,7 @@ end)
 gui.Destroying:Connect(function()
 	if isGriefing then stopGrief() end
 	clearHighlights()
+	dropdownFrame:Destroy()
 end)
 -- ==========================================
 title.Size = UDim2.new(1, 0, 0, 26)
