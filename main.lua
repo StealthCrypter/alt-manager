@@ -252,12 +252,14 @@ local commands = {
 			humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 		end
 	end,
+
 	sit = function()
 		local humanoid = getHumanoid()
 		if humanoid then
 			humanoid.Sit = true
 		end
 	end,
+
 	speed = function(args)
 		local humanoid = getHumanoid()
 		local value = tonumber(args[1])
@@ -265,12 +267,14 @@ local commands = {
 			humanoid.WalkSpeed = math.clamp(value, 0, 100)
 		end
 	end,
+
 	stop = function()
 		local humanoid = getHumanoid()
 		if humanoid then
 			humanoid:Move(Vector3.zero)
 		end
 	end,
+
 	say = function(args)
 		local text = table.concat(args, " ")
 		if text ~= "" then
@@ -300,6 +304,7 @@ local function relayCommand(text)
 end
 
 local destroyed = false
+
 local spinConnection
 
 local function stopSpin()
@@ -1093,7 +1098,7 @@ stopLoopButton.Parent = actionsPage
 stopLoopButton.Position = UDim2.new(0.5, 5, 0, 218)
 
 -- ==========================================
--- MOVEMENT HACKS (Actions Tab)
+-- MOVEMENT HACKS (Actions Tab) - FIXED LAYOUT
 -- ==========================================
 local hacksFrame = Instance.new("Frame")
 hacksFrame.Position = UDim2.fromOffset(10, 260)
@@ -1142,6 +1147,7 @@ local function makeHackButton(text, xPos, yPos, colorOn, colorOff, onFunc, offFu
 	return btn
 end
 
+-- Row 1: Noclip (Left) & Fly (Right)
 local noclipConn = nil
 makeHackButton("Noclip", 10, 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
 	function()
@@ -1225,6 +1231,7 @@ makeHackButton("Fly", 210, 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 1
 	end
 )
 
+-- Row 2: Speed (Left) & Jump (Right)
 local speedConn = nil
 makeHackButton("Speed 50", 10, 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
 	function()
@@ -1445,7 +1452,7 @@ end)
 -- ==========================================
 
 -- ==========================================
--- DESTRUCTION PAGE (With Dropdown & Highlights)
+-- DESTRUCTION PAGE & GRIEF TOOL INTEGRATION
 -- ==========================================
 local destructionPage = Instance.new("Frame")
 destructionPage.Position = UDim2.fromOffset(0, 72)
@@ -1455,45 +1462,19 @@ destructionPage.BorderSizePixel = 0
 destructionPage.Visible = false
 destructionPage.Parent = frame
 
-local selectTargetsBtn = Instance.new("TextButton")
-selectTargetsBtn.Position = UDim2.fromOffset(10, 12)
-selectTargetsBtn.Size = UDim2.new(1, -20, 0, 32)
-selectTargetsBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
-selectTargetsBtn.BorderSizePixel = 0
-selectTargetsBtn.Text = "Select Targets: None"
-selectTargetsBtn.TextColor3 = Color3.new(1, 1, 1)
-selectTargetsBtn.Font = Enum.Font.GothamBold
-selectTargetsBtn.TextSize = 13
-selectTargetsBtn.Parent = destructionPage
-round(selectTargetsBtn)
-
--- Dropdown parented to GUI to avoid clipping
-local dropdownFrame = Instance.new("ScrollingFrame")
-dropdownFrame.Position = UDim2.fromOffset(122, 166) -- Adjusted for ScreenGui coordinates
-dropdownFrame.Size = UDim2.new(0, 380, 0, 150)
-dropdownFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
-dropdownFrame.BorderSizePixel = 0
-dropdownFrame.ScrollBarThickness = 4
-dropdownFrame.ScrollBarImageColor3 = Color3.fromRGB(88, 101, 242)
-dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-dropdownFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-dropdownFrame.Visible = false
-dropdownFrame.ZIndex = 10
-dropdownFrame.ClipsDescendants = false
-dropdownFrame.Parent = gui
-round(dropdownFrame)
-
-local dropdownLayout = Instance.new("UIListLayout")
-dropdownLayout.Padding = UDim.new(0, 4)
-dropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
-dropdownLayout.Parent = dropdownFrame
-
-local dropdownPadding = Instance.new("UIPadding")
-dropdownPadding.PaddingTop = UDim.new(0, 4)
-dropdownPadding.PaddingBottom = UDim.new(0, 4)
-dropdownPadding.PaddingLeft = UDim.new(0, 4)
-dropdownPadding.PaddingRight = UDim.new(0, 4)
-dropdownPadding.Parent = dropdownFrame
+local targetPlayersInput = Instance.new("TextBox")
+targetPlayersInput.Position = UDim2.fromOffset(10, 12)
+targetPlayersInput.Size = UDim2.new(1, -20, 0, 32)
+targetPlayersInput.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
+targetPlayersInput.BorderSizePixel = 0
+targetPlayersInput.PlaceholderText = "Target Players (comma separated)"
+targetPlayersInput.PlaceholderColor3 = Color3.fromRGB(170, 170, 175)
+targetPlayersInput.Text = ""
+targetPlayersInput.TextColor3 = Color3.new(1, 1, 1)
+targetPlayersInput.Font = Enum.Font.Gotham
+targetPlayersInput.TextSize = 14
+targetPlayersInput.ClearTextOnFocus = false
+targetPlayersInput.Parent = destructionPage
 
 local toggleGriefButton = Instance.new("TextButton")
 toggleGriefButton.Position = UDim2.fromOffset(10, 54)
@@ -1505,7 +1486,6 @@ toggleGriefButton.TextColor3 = Color3.new(1, 1, 1)
 toggleGriefButton.Font = Enum.Font.GothamBold
 toggleGriefButton.TextSize = 13
 toggleGriefButton.Parent = destructionPage
-round(toggleGriefButton)
 
 local griefStatusLabel = Instance.new("TextLabel")
 griefStatusLabel.Position = UDim2.fromOffset(10, 96)
@@ -1518,147 +1498,23 @@ griefStatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 griefStatusLabel.Text = ""
 griefStatusLabel.Parent = destructionPage
 
--- ==========================================
--- LOGIC
--- ==========================================
 local isGriefing = false
 local griefLoop = nil
-local selectedTargets = {}
-local activeHighlights = {}
-local isDropdownOpen = false
 
 local TEXT_START = "Start Grief"
 local TEXT_STOP = "Stop Grief"
+local TEXT_NO_BLOCKS = "No Blocks Found"
 local ws = 0.05
 
-local function createDropdownButton(text, isSelected)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, 0, 0, 28)
-	btn.BackgroundColor3 = isSelected and Color3.fromRGB(65, 125, 75) or Color3.fromRGB(50, 50, 57)
-	btn.BorderSizePixel = 0
-	btn.Text = text
-	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 12
-	btn.ZIndex = 11
-	btn.Parent = dropdownFrame
-	round(btn)
-	return btn
-end
-
-local function updateSelectBtnText()
-	if selectedTargets["ALL"] then
-		selectTargetsBtn.Text = "Select Targets: ALL"
-	elseif next(selectedTargets) then
-		local count = 0
-		for _ in pairs(selectedTargets) do count = count + 1 end
-		selectTargetsBtn.Text = "Select Targets: " .. count .. " Player(s)"
-	else
-		selectTargetsBtn.Text = "Select Targets: None"
-	end
-end
-
-local function clearHighlights()
-	for _, h in pairs(activeHighlights) do 
-		pcall(function() h:Destroy() end) 
-	end
-	activeHighlights = {}
-end
-
-local function applyHighlights()
-	clearHighlights()
-	local bricksFolder = workspace:FindFirstChild("Bricks")
-	if not bricksFolder then return end
-
-	local selectAll = selectedTargets["ALL"]
-
-	for _, folder in pairs(bricksFolder:GetChildren()) do
-		local shouldHighlight = selectAll or selectedTargets[folder.Name]
-		if shouldHighlight then
-			local h = Instance.new("Highlight")
-			h.Adornee = folder
-			h.FillColor = Color3.fromRGB(255, 0, 0)
-			h.OutlineColor = Color3.fromRGB(255, 50, 50)
-			h.FillTransparency = 0.8
-			h.OutlineTransparency = 0.2
-			h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-			h.Parent = folder
-			table.insert(activeHighlights, h)
-		end
-	end
-end
-
-local function populateDropdown()
-	for _, child in pairs(dropdownFrame:GetChildren()) do
-		if child:IsA("TextButton") then child:Destroy() end
-	end
-
-	local allBtn = createDropdownButton("All Players", selectedTargets["ALL"])
-	allBtn.Activated:Connect(function()
-		if selectedTargets["ALL"] then
-			selectedTargets = {}
-		else
-			selectedTargets = { ["ALL"] = true }
-		end
-		populateDropdown()
-		updateSelectBtnText()
-		applyHighlights()
-	end)
-
-	for _, plr in pairs(Players:GetPlayers()) do
-		if plr ~= player then
-			local btn = createDropdownButton(plr.Name, selectedTargets[plr.Name])
-			btn.Activated:Connect(function()
-				selectedTargets[plr.Name] = not selectedTargets[plr.Name]
-				selectedTargets["ALL"] = nil
-				populateDropdown()
-				updateSelectBtnText()
-				applyHighlights()
-			end)
-		end
-	end
-end
-
-selectTargetsBtn.Activated:Connect(function()
-	isDropdownOpen = not isDropdownOpen
-	dropdownFrame.Visible = isDropdownOpen
-	if isDropdownOpen then
-		populateDropdown()
-	else
-		toggleGriefButton.Position = UDim2.fromOffset(10, 54)
-		griefStatusLabel.Position = UDim2.fromOffset(10, 96)
-	end
-end)
-
-Players.PlayerAdded:Connect(function() if isDropdownOpen then populateDropdown() end end)
-Players.PlayerRemoving:Connect(function() 
-	selectedTargets["ALL"] = nil
-	if isDropdownOpen then populateDropdown() end
-	applyHighlights() 
-end)
-
-local bricksFolder = workspace:FindFirstChild("Bricks")
-if bricksFolder then
-	bricksFolder.ChildAdded:Connect(applyHighlights)
-	bricksFolder.ChildRemoved:Connect(applyHighlights)
-end
-
-updateSelectBtnText()
-applyHighlights()
-
--- Griefing Logic
 local function getSelectedPlayers()
 	local players = {}
-	if selectedTargets["ALL"] then
-		local bf = workspace:FindFirstChild("Bricks")
-		if bf then
-			for _, folder in pairs(bf:GetChildren()) do
-				players[folder.Name] = true
+	local text = targetPlayersInput.Text
+	if text and text ~= "" then
+		for name in string.gmatch(text, "[^,]+") do
+			local trimmed = name:match("^%s*(.-)%s*$")
+			if trimmed ~= "" then
+				players[trimmed] = true
 			end
-		end
-	else
-		for name, _ in pairs(selectedTargets) do
-			players[name] = true
 		end
 	end
 	return players
@@ -1796,8 +1652,8 @@ end
 toggleGriefButton.MouseEnter:Connect(function()
 	if not isGriefing then
 		local targetBlocks = getAllTargetBlocks()
-		if #targetBlocks == 0 and next(selectedTargets) then
-			griefStatusLabel.Text = "No Blocks Found"
+		if #targetBlocks == 0 and targetPlayersInput.Text ~= "" then
+			griefStatusLabel.Text = TEXT_NO_BLOCKS
 		end
 	end
 end)
@@ -1817,9 +1673,9 @@ toggleGriefButton.Activated:Connect(function()
 end)
 
 gui.Destroying:Connect(function()
-	if isGriefing then stopGrief() end
-	clearHighlights()
-	dropdownFrame:Destroy()
+	if isGriefing then
+		stopGrief()
+	end
 end)
 -- ==========================================
 
