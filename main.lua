@@ -252,14 +252,12 @@ local commands = {
 			humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 		end
 	end,
-
 	sit = function()
 		local humanoid = getHumanoid()
 		if humanoid then
 			humanoid.Sit = true
 		end
 	end,
-
 	speed = function(args)
 		local humanoid = getHumanoid()
 		local value = tonumber(args[1])
@@ -267,14 +265,12 @@ local commands = {
 			humanoid.WalkSpeed = math.clamp(value, 0, 100)
 		end
 	end,
-
 	stop = function()
 		local humanoid = getHumanoid()
 		if humanoid then
 			humanoid:Move(Vector3.zero)
 		end
 	end,
-
 	say = function(args)
 		local text = table.concat(args, " ")
 		if text ~= "" then
@@ -304,7 +300,6 @@ local function relayCommand(text)
 end
 
 local destroyed = false
-
 local spinConnection
 
 local function stopSpin()
@@ -1098,7 +1093,7 @@ stopLoopButton.Parent = actionsPage
 stopLoopButton.Position = UDim2.new(0.5, 5, 0, 218)
 
 -- ==========================================
--- MOVEMENT HACKS (Actions Tab) - FIXED LAYOUT
+-- MOVEMENT HACKS (Actions Tab)
 -- ==========================================
 local hacksFrame = Instance.new("Frame")
 hacksFrame.Position = UDim2.fromOffset(10, 260)
@@ -1147,7 +1142,6 @@ local function makeHackButton(text, xPos, yPos, colorOn, colorOff, onFunc, offFu
 	return btn
 end
 
--- Row 1: Noclip (Left) & Fly (Right)
 local noclipConn = nil
 makeHackButton("Noclip", 10, 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
 	function()
@@ -1231,7 +1225,6 @@ makeHackButton("Fly", 210, 30, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 1
 	end
 )
 
--- Row 2: Speed (Left) & Jump (Right)
 local speedConn = nil
 makeHackButton("Speed 50", 10, 64, Color3.fromRGB(65, 125, 75), Color3.fromRGB(75, 110, 170),
 	function()
@@ -1452,7 +1445,7 @@ end)
 -- ==========================================
 
 -- ==========================================
--- DESTRUCTION PAGE & GRIEF TOOL INTEGRATION (WITH DROPDOWN)
+-- DESTRUCTION PAGE (With Dropdown & Highlights)
 -- ==========================================
 local destructionPage = Instance.new("Frame")
 destructionPage.Position = UDim2.fromOffset(0, 72)
@@ -1462,7 +1455,6 @@ destructionPage.BorderSizePixel = 0
 destructionPage.Visible = false
 destructionPage.Parent = frame
 
--- Dropdown Selection Button (NEW)
 local selectTargetsBtn = Instance.new("TextButton")
 selectTargetsBtn.Position = UDim2.fromOffset(10, 12)
 selectTargetsBtn.Size = UDim2.new(1, -20, 0, 32)
@@ -1475,10 +1467,10 @@ selectTargetsBtn.TextSize = 13
 selectTargetsBtn.Parent = destructionPage
 round(selectTargetsBtn)
 
--- Dropdown Frame (NEW - parented to frame to avoid clipping)
+-- Dropdown parented to GUI to avoid clipping
 local dropdownFrame = Instance.new("ScrollingFrame")
-dropdownFrame.Position = UDim2.fromOffset(10, 50)
-dropdownFrame.Size = UDim2.new(1, -20, 0, 150)
+dropdownFrame.Position = UDim2.fromOffset(122, 166) -- Adjusted for ScreenGui coordinates
+dropdownFrame.Size = UDim2.new(0, 380, 0, 150)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
 dropdownFrame.BorderSizePixel = 0
 dropdownFrame.ScrollBarThickness = 4
@@ -1488,7 +1480,7 @@ dropdownFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 dropdownFrame.Visible = false
 dropdownFrame.ZIndex = 10
 dropdownFrame.ClipsDescendants = false
-dropdownFrame.Parent = frame  -- PARENTED TO FRAME, NOT destructionPage
+dropdownFrame.Parent = gui
 round(dropdownFrame)
 
 local dropdownLayout = Instance.new("UIListLayout")
@@ -1503,7 +1495,6 @@ dropdownPadding.PaddingLeft = UDim.new(0, 4)
 dropdownPadding.PaddingRight = UDim.new(0, 4)
 dropdownPadding.Parent = dropdownFrame
 
--- Start Grief Button (repositioned)
 local toggleGriefButton = Instance.new("TextButton")
 toggleGriefButton.Position = UDim2.fromOffset(10, 54)
 toggleGriefButton.Size = UDim2.new(1, -20, 0, 32)
@@ -1633,8 +1624,6 @@ selectTargetsBtn.Activated:Connect(function()
 	dropdownFrame.Visible = isDropdownOpen
 	if isDropdownOpen then
 		populateDropdown()
-		toggleGriefButton.Position = UDim2.fromOffset(10, 220)
-		griefStatusLabel.Position = UDim2.fromOffset(10, 260)
 	else
 		toggleGriefButton.Position = UDim2.fromOffset(10, 54)
 		griefStatusLabel.Position = UDim2.fromOffset(10, 96)
@@ -1657,7 +1646,7 @@ end
 updateSelectBtnText()
 applyHighlights()
 
--- Griefing Logic (Updated to use dropdown)
+-- Griefing Logic
 local function getSelectedPlayers()
 	local players = {}
 	if selectedTargets["ALL"] then
@@ -1833,6 +1822,7 @@ gui.Destroying:Connect(function()
 	dropdownFrame:Destroy()
 end)
 -- ==========================================
+
 title.Size = UDim2.new(1, 0, 0, 26)
 title.TextSize = 13
 
