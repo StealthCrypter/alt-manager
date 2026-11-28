@@ -1,5 +1,30 @@
+-- ==========================================
+-- CORTEGE MAIN SCRIPT
+-- ==========================================
+
+-- 1. Load Settings from the Loader
+local Settings = getgenv().Settings or {}
+local PREFIX = Settings.prefix or "!"
+local MAIN_ACCOUNT = Settings.mainAccount or ""
+
+-- 2. Auto-build the accounts table from the config
+local accounts = {}
+local selectedIndex
+
+if MAIN_ACCOUNT ~= "" then
+    table.insert(accounts, { Name = MAIN_ACCOUNT, Role = "Main" })
+end
+
+if Settings.altAccounts then
+    for altName, _ in pairs(Settings.altAccounts) do
+        table.insert(accounts, { Name = altName, Role = "Alt" })
+    end
+end
+
+-- 3. Rest of your script variables...
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+-- ... (keep all your other services and UI creation code exactly as it is) ...
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
