@@ -1559,12 +1559,15 @@ end)
 -- ==========================================
 -- DESTRUCTION PAGE (Dropdown + Highlights + Builder Tools)
 -- ==========================================
-local destructionPage = Instance.new("Frame")
+local destructionPage = Instance.new("ScrollingFrame")
 destructionPage.Position = UDim2.fromOffset(0, 72)
 destructionPage.Size = UDim2.new(1, 0, 1, -72)
 destructionPage.BackgroundTransparency = 1
 destructionPage.BorderSizePixel = 0
 destructionPage.Visible = false
+destructionPage.ScrollBarThickness = 4
+destructionPage.ScrollBarImageColor3 = Color3.fromRGB(88, 101, 242)
+destructionPage.CanvasSize = UDim2.new(0, 0, 0, 450) -- FIXED: Added scrolling
 destructionPage.Parent = frame
 
 -- === GRIEFING SECTION ===
