@@ -1,5 +1,5 @@
 -- ==========================================
--- CORTEGE MAIN SCRIPT (Full Version + Direct Equip Fix)
+-- CORTEGE MAIN SCRIPT (Full Version + Debug Export Fix)
 -- ==========================================
 
 -- 1. Load Settings from the Loader
@@ -672,7 +672,7 @@ local function startFollow(targetName, baseDistance, mode)
 						local rank = math.ceil(index / 2)
 						offset = Vector3.new(side * rank * baseGap * 0.8, 0, rank * baseGap)
 					elseif mode == "grid" then
-						local columns = math.ceil(sqrt(total))
+						local columns = math.ceil(math.sqrt(total))
 						local row = (index - 1) // columns
 						local column = (index - 1) % columns
 						offset = Vector3.new((column - (columns - 1) / 2) * baseGap, 0, baseGap * (row + 1))
@@ -1854,12 +1854,12 @@ buildStatus.TextXAlignment = Enum.TextXAlignment.Left
 buildStatus.Parent = builderFrame
 
 -- ==========================================
--- BUILDER TOOLS LOGIC (Chat-Safe Export + Batched Relay)
+-- BUILDER TOOLS LOGIC (Debug Export + Batched Relay)
 -- ==========================================
 local importedBuildData = nil
 local isBuilding = false
 
--- EXPORT (FIXED: Rounds coordinates & clamps colors to prevent 0-values)
+-- EXPORT (DEBUG VERSION: Identifies exactly why scanning hangs)
 exportBtn.Activated:Connect(function()
 	buildStatus.Text = "Status: Scanning bricks..."
 	task.spawn(function()
@@ -1869,17 +1869,30 @@ exportBtn.Activated:Connect(function()
 			return 
 		end
 
+		local bricksFolder = workspace:FindFirstChild("Bricks")
+		if not bricksFolder then
+			buildStatus.Text = "Status: ERROR - 'Bricks' folder missing from Workspace!"
+			warn("[EXPORT] workspace.Bricks does not exist!")
+			return
+		end
+
+		print("[EXPORT DEBUG] Bricks folder found. Children:", #bricksFolder:GetChildren())
+		for _, child in ipairs(bricksFolder:GetChildren()) do
+			print("  - Folder:", child.Name, "| Bricks:", #child:GetChildren())
+		end
+
 		local data = {}
 		local count = 0
 		
-		for _, folder in pairs(workspace.Bricks:GetChildren()) do
+		for _, folder in pairs(bricksFolder:GetChildren()) do
 			local shouldScan = selectedTargets["ALL"] or selectedTargets[folder.Name]
+			print("[EXPORT DEBUG] Checking folder:", folder.Name, "| Should scan:", shouldScan)
+			
 			if shouldScan then
 				for _, brick in pairs(folder:GetChildren()) do
 					if brick:IsA("BasePart") and brick.Name == "Brick" then
 						local relPos = brick.Position - hrp.Position
 						
-						-- Debug print to verify color values during export
 						print("[EXPORT] Brick color RGB:", brick.Color.R, brick.Color.G, brick.Color.B, 
 							  "-> Saved as:", 
 							  math.max(0, math.min(255, math.round(brick.Color.R * 255))),
@@ -1909,6 +1922,7 @@ exportBtn.Activated:Connect(function()
 
 		if count == 0 then
 			buildStatus.Text = "Status: No bricks found for selection"
+			warn("[EXPORT] Exported 0 bricks. Check target selection and folder structure.")
 			return
 		end
 
