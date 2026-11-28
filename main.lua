@@ -267,36 +267,7 @@ local function say(text)
 	end
 end
 
--- VIRTUALUSER TOOL EQUIP FUNCTION (With Diagnostic Scan)
 local function equipTool(toolName)
-    -- === DIAGNOSTIC SCAN: RUN THIS ONCE TO FIND CORRECT BUTTON NAMES ===
-    print("[ALT BUILD] ========== SCANNING PLAYERGUI FOR TOOL BUTTONS ==========")
-    local pgui = player:WaitForChild("PlayerGui")
-    local foundCount = 0
-    
-    for _, descendant in ipairs(pgui:GetDescendants()) do
-        if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
-            print(string.format("  [%d] Name: '%s' | Parent: '%s' | Visible: %s", 
-                foundCount + 1, 
-                descendant.Name, 
-                descendant.Parent.Name, 
-                tostring(descendant.Visible)))
-            foundCount += 1
-            
-            -- Stop after finding first 30 buttons to avoid spamming console
-            if foundCount >= 30 then 
-                print("[ALT BUILD] ... (showing first 30 buttons only)")
-                break 
-            end
-        end
-    end
-    
-    if foundCount == 0 then
-        print("[ALT BUILD] WARNING: No TextButtons or ImageButtons found in PlayerGui!")
-    end
-    print("[ALT BUILD] ========== END SCAN ==========")
-    -- ============================================================
-    
     local tool = player.Backpack:FindFirstChild(toolName)
         or (player.Character and player.Character:FindFirstChild(toolName))
     
@@ -313,166 +284,24 @@ local function equipTool(toolName)
             print("[ALT BUILD] Tool '" .. toolName .. "' already equipped")
             return true
         end
-    end
-    
-    -- Find the tool button in ANY backpack-like GUI
-    local toolButton = nil
-    local foundGui = nil
-    
-    -- Try common backpack GUI names first
-    local possibleNames = {"Backpack", "backpack", "BackPack", "Hotbar", "hotbar", "Tools", "tools"}
-    for _, name in ipairs(possibleNames) do
-        local bgui = pgui:FindFirstChild(name)
-        if bgui then
-            foundGui = bgui
-            break
+        
+        -- Direct equip via Humanoid (bypasses GUI entirely)
+        hum:EquipTool(tool)
+        task.wait(0.2)
+        
+        local newTool = hum.Parent:FindFirstChildWhichIsA("Tool")
+        if newTool and newTool.Name == toolName then
+            print("[ALT BUILD] Successfully equipped '" .. toolName .. "' via Humanoid:EquipTool")
+            return true
         end
-    end
-    
-    -- If still not found, search ALL descendants of PlayerGui
-    if not foundGui then
-        print("[ALT BUILD] Searching all PlayerGui for tool buttons...")
-        for _, descendant in ipairs(pgui:GetDescendants()) do
-            if (descendant:IsA("TextButton") or descendant:IsA("ImageButton")) and 
-               descendant.Name == toolName then
-                toolButton = descendant
-                foundGui = descendant.Parent
-                print("[ALT BUILD] Found tool button in:", foundGui.Name)
-                break
-            end
-        end
-    end
-    
-    if not foundGui and not toolButton then
-        print("[ALT BUILD] ERROR: Could not find ANY GUI containing '" .. toolName .. "' button!")
+        
+        print("[ALT BUILD] WARNING: Humanoid:EquipTool failed for '" .. toolName .. "'")
         return false
     end
     
-    -- If we found the GUI but not the button yet, search inside it
-    if not toolButton and foundGui then
-        for _, child in ipairs(foundGui:GetDescendants()) do
-            if (child:IsA("TextButton") or child:IsA("ImageButton")) and 
-               child.Name == toolName then
-                toolButton = child
-                break
-            end
-        end
-    end
-    
-    if not toolButton then
-        print("[ALT BUILD] ERROR: Found GUI '" .. foundGui.Name .. "' but no button named '" .. toolName .. "'")
-        return false
-    end
-    
-    -- Get absolute screen position of the button
-    local absPos = toolButton.AbsolutePosition
-    local absSize = toolButton.AbsoluteSize
-    local clickPos = Vector2.new(
-        absPos.X + absSize.X / 2,
-        absPos.Y + absSize.Y / 2
-    )
-    
-    print("[ALT BUILD] Clicking tool button at:", clickPos)
-    
-    -- Simulate mouse click using VirtualUser
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton1(clickPos)
-    
-    -- Wait and verify equip succeeded
-    task.wait(0.3)
-    local newTool = hum and hum.Parent:FindFirstChildWhichIsA("Tool")
-    if newTool and newTool.Name == toolName then
-        print("[ALT BUILD] Successfully equipped '" .. toolName .. "' via click")
-        return true
-    end
-    
-    print("[ALT BUILD] WARNING: Click equip failed for '" .. toolName .. "'")
+    print("[ALT BUILD] ERROR: No humanoid found!")
     return false
 end
-
-local commands = {
-	jump = function()
-		local humanoid = getHumanoid()
-		if humanoid then
-			humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-		end
-	end,
-	sit = function()
-		local humanoid = getHumanoid()
-		if humanoid then
-			humanoid.Sit = true
-		end
-	end,
-	speed = function(args)
-		local humanoid = getHumanoid()
-		local value = tonumber(args[1])
-		if humanoid and value then
-			humanoid.WalkSpeed = math.clamp(value, 0, 100)
-		end
-	end,
-	stop = function()
-		local humanoid = getHumanoid()
-		if humanoid then
-			humanoid:Move(Vector3.zero)
-		end
-	end,
-	say = function(args)
-		local text = table.concat(args, " ")
-		if text ~= "" then
-			say(text)
-		end
-	end,
-	summon = function(args)
-		local targetName = args[1]
-		if not targetName then return end
-		
-		local targetPlr = Players:FindFirstChild(targetName)
-		if not targetPlr then return end
-		
-		local targetChar = targetPlr.Character
-		local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-		if not targetRoot then return end
-		
-		local humanoid = getHumanoid()
-		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-		
-		if humanoid and root then
-			humanoid:MoveTo(targetRoot.Position)
-		end
-	end,
-	build = function(args)
-		print("[ALT BUILD] ========== STARTING BUILD COMMAND ==========")
-		print("[ALT BUILD] Received args:", table.concat(args, " "))
-		
-		if #args < 10 then 
-			print("[ALT BUILD] ERROR: Not enough arguments (got " .. #args .. ", need 10)")
-			return 
-		end
-		
-		local x, y, z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
-		local sx, sy, sz = tonumber(args[4]), tonumber(args[5]), tonumber(args[6])
-		local r, g, b = tonumber(args[7]), tonumber(args[8]), tonumber(args[9])
-		local material = args[10]
-		
-		print("[ALT BUILD] Parsed - Pos:", x, y, z, "Size:", sx, sy, sz, "Color:", r, g, b, "Mat:", material)
-		
-		if not (x and y and z and sx and sy and sz and r and g and b) then 
-			print("[ALT BUILD] ERROR: Failed to parse numbers")
-			return 
-		end
-		
-		local pos = Vector3.new(x, y, z)
-		local size = Vector3.new(sx, sy, sz)
-		
-		-- Smart color handling (handles both 0-1 floats and 0-255 ints)
-		local color = (r > 1) and Color3.fromRGB(r, g, b) or Color3.fromRGB(r * 255, g * 255, b * 255)
-		print("[ALT BUILD] Final color:", color)
-		
-		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-		if not hrp then 
-			print("[ALT BUILD] ERROR: No HumanoidRootPart found")
-			return 
-		end
 		
 		-- Build Tool
 		local buildTool = player.Backpack:FindFirstChild("Build") 
