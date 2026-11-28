@@ -1,5 +1,5 @@
 -- ==========================================
--- CORTEGE MAIN SCRIPT (Full Version)
+-- CORTEGE MAIN SCRIPT (Full Version + Summon + Self Select Fix)
 -- ==========================================
 
 -- 1. Load Settings from the Loader
@@ -297,6 +297,26 @@ local commands = {
 		local text = table.concat(args, " ")
 		if text ~= "" then
 			say(text)
+		end
+	end,
+	summon = function(args)
+		-- Alts receive this command and move to the specified player
+		local targetName = args[1]
+		if not targetName then return end
+		
+		local targetPlr = Players:FindFirstChild(targetName)
+		if not targetPlr then return end
+		
+		local targetChar = targetPlr.Character
+		local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+		if not targetRoot then return end
+		
+		local humanoid = getHumanoid()
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		
+		if humanoid and root then
+			-- Simple direct movement towards target
+			humanoid:MoveTo(targetRoot.Position)
 		end
 	end,
 	build = function(args)
@@ -699,6 +719,9 @@ local function handleMessage(senderName, text)
 	elseif name == "unfollow" then
 		followId += 1
 		followingName = nil
+	elseif name == "summon" then
+		-- Handle summon command received by alts
+		commands.summon(args)
 	elseif commands[name] then
 		commands[name](args)
 	end
@@ -867,7 +890,7 @@ end
 
 faq("Setup", "Run on every account. Main chats " .. PREFIX .. "setalts alt1 alt2, or add usernames by hand.")
 faq("Toggle", "Commands are ON by default. Turn the toggle OFF (or chat " .. PREFIX .. "off) to pause the alts.")
-faq("Commands", PREFIX .. "jump  " .. PREFIX .. "sit  " .. PREFIX .. "speed n  " .. PREFIX .. "stop  " .. PREFIX .. "say text\n" .. PREFIX .. "spin [n]  " .. PREFIX .. "unspin  " .. PREFIX .. "wave  " .. PREFIX .. "dance  " .. PREFIX .. "cheer  " .. PREFIX .. "laugh  " .. PREFIX .. "point\n" .. PREFIX .. "follow [mode] [studs]  " .. PREFIX .. "unfollow  " .. PREFIX .. "ping on/off\nModes: pf direct orbit line circle vee grid wall\n" .. PREFIX .. "loop secs cmd  " .. PREFIX .. "stoploop")
+faq("Commands", PREFIX .. "jump  " .. PREFIX .. "sit  " .. PREFIX .. "speed n  " .. PREFIX .. "stop  " .. PREFIX .. "say text\n" .. PREFIX .. "spin [n]  " .. PREFIX .. "unspin  " .. PREFIX .. "wave  " .. PREFIX .. "dance  " .. PREFIX .. "cheer  " .. PREFIX .. "laugh  " .. PREFIX .. "point\n" .. PREFIX .. "follow [mode] [studs]  " .. PREFIX .. "unfollow  " .. PREFIX .. "ping on/off\nModes: pf direct orbit line circle vee grid wall\n" .. PREFIX .. "loop secs cmd  " .. PREFIX .. "stoploop\n" .. PREFIX .. "summon (Alts only: moves to specified player)")
 faq("Not working?", "Toggle off, wrong or missing names, or old script on the alt.")
 
 local pingPage = Instance.new("Frame")
@@ -1024,6 +1047,9 @@ pingSelf.Activated:Connect(function()
 	setPing(not pingEnabled)
 end)
 
+-- ==========================================
+-- MOVE PAGE (With Summon Button)
+-- ==========================================
 local followPage = Instance.new("Frame")
 followPage.Position = UDim2.fromOffset(0, 72)
 followPage.Size = UDim2.new(1, 0, 1, -72)
@@ -1111,8 +1137,12 @@ local stopFollowButton = followButton("Stop", 138, Color3.fromRGB(110, 65, 65))
 stopFollowButton.Position = UDim2.new(0.5, 5, 0, 138)
 stopFollowButton.Size = UDim2.new(0.5, -15, 0, 32)
 
+-- SUMMON BUTTON ADDED HERE
+local summonButton = followButton("Summon Alts", 180, Color3.fromRGB(130, 175, 255))
+summonButton.Size = UDim2.new(1, -20, 0, 32)
+
 local followStatus = Instance.new("TextLabel")
-followStatus.Position = UDim2.fromOffset(10, 182)
+followStatus.Position = UDim2.fromOffset(10, 220)
 followStatus.Size = UDim2.new(1, -20, 0, 24)
 followStatus.BackgroundTransparency = 1
 followStatus.TextXAlignment = Enum.TextXAlignment.Left
@@ -1142,6 +1172,19 @@ stopFollowButton.Activated:Connect(function()
 	else
 		followId += 1
 		followingName = nil
+	end
+end)
+
+-- SUMMON LOGIC
+summonButton.Activated:Connect(function()
+	if hasRole(player.Name, "Main") then
+		-- Send summon command to all alts
+		relayCommand(PREFIX .. "summon " .. player.Name)
+		followStatus.Text = "Status: Summoning alts..."
+		task.delay(2, function() followStatus.Text = "Idle" end)
+	else
+		-- If running locally as an alt, just move to self (debug)
+		commands.summon({player.Name})
 	end
 end)
 
@@ -1817,17 +1860,16 @@ local function populateDropdown()
 		applyHighlights()
 	end)
 
+	-- FIXED: Removed "if plr ~= player" check so you CAN select yourself
 	for _, plr in pairs(Players:GetPlayers()) do
-		if plr ~= player then
-			local btn = createDropdownButton(plr.Name, selectedTargets[plr.Name])
-			btn.Activated:Connect(function()
-				selectedTargets[plr.Name] = not selectedTargets[plr.Name]
-				selectedTargets["ALL"] = nil
-				populateDropdown()
-				updateSelectBtnText()
-				applyHighlights()
-			end)
-		end
+		local btn = createDropdownButton(plr.Name, selectedTargets[plr.Name])
+		btn.Activated:Connect(function()
+			selectedTargets[plr.Name] = not selectedTargets[plr.Name]
+			selectedTargets["ALL"] = nil
+			populateDropdown()
+			updateSelectBtnText()
+			applyHighlights()
+		end)
 	end
 end
 
