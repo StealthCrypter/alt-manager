@@ -266,6 +266,8 @@ local function say(text)
 		general:SendAsync(text)
 	end
 end
+
+-- VIRTUALUSER TOOL EQUIP FUNCTION (With Diagnostic Scan)
 local function equipTool(toolName)
     -- === DIAGNOSTIC SCAN: RUN THIS ONCE TO FIND CORRECT BUTTON NAMES ===
     print("[ALT BUILD] ========== SCANNING PLAYERGUI FOR TOOL BUTTONS ==========")
@@ -281,9 +283,9 @@ local function equipTool(toolName)
                 tostring(descendant.Visible)))
             foundCount += 1
             
-            -- Stop after finding first 20 buttons to avoid spamming console
-            if foundCount >= 20 then 
-                print("[ALT BUILD] ... (showing first 20 buttons only)")
+            -- Stop after finding first 30 buttons to avoid spamming console
+            if foundCount >= 30 then 
+                print("[ALT BUILD] ... (showing first 30 buttons only)")
                 break 
             end
         end
@@ -295,20 +297,6 @@ local function equipTool(toolName)
     print("[ALT BUILD] ========== END SCAN ==========")
     -- ============================================================
     
-    -- Rest of your existing equipTool code continues below...
-    local tool = player.Backpack:FindFirstChild(toolName)
-        or (player.Character and player.Character:FindFirstChild(toolName))
-    
-    if not tool then 
-        print("[ALT BUILD] ERROR: Tool '" .. toolName .. "' not found!")
-        return false 
-    end
-    
-    -- ... rest of original function
-end
-
--- VIRTUALUSER TOOL EQUIP FUNCTION (Expanded GUI Search)
-local function equipTool(toolName)
     local tool = player.Backpack:FindFirstChild(toolName)
         or (player.Character and player.Character:FindFirstChild(toolName))
     
@@ -328,7 +316,6 @@ local function equipTool(toolName)
     end
     
     -- Find the tool button in ANY backpack-like GUI
-    local pgui = player:WaitForChild("PlayerGui")
     local toolButton = nil
     local foundGui = nil
     
