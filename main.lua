@@ -1,5 +1,5 @@
 -- ==========================================
--- CORTEGE MAIN SCRIPT (Full Version + VirtualUser Build Fix)
+-- CORTEGE MAIN SCRIPT (Full Version + Fixed VirtualUser & Color Export)
 -- ==========================================
 
 -- 1. Load Settings from the Loader
@@ -267,7 +267,7 @@ local function say(text)
 	end
 end
 
--- VIRTUALUSER TOOL EQUIP FUNCTION
+-- VIRTUALUSER TOOL EQUIP FUNCTION (Expanded GUI Search)
 local function equipTool(toolName)
     local tool = player.Backpack:FindFirstChild(toolName)
         or (player.Character and player.Character:FindFirstChild(toolName))
@@ -287,27 +287,53 @@ local function equipTool(toolName)
         end
     end
     
-    -- Find the tool button in the backpack GUI
+    -- Find the tool button in ANY backpack-like GUI
     local pgui = player:WaitForChild("PlayerGui")
-    local backpackGui = pgui:FindFirstChild("Backpack")
-    
-    if not backpackGui then
-        print("[ALT BUILD] ERROR: Backpack GUI not found!")
-        return false
-    end
-    
-    -- Search for the tool button
     local toolButton = nil
-    for _, child in ipairs(backpackGui:GetDescendants()) do
-        if (child:IsA("TextButton") or child:IsA("ImageButton")) and 
-           child.Name == toolName then
-            toolButton = child
+    local foundGui = nil
+    
+    -- Try common backpack GUI names first
+    local possibleNames = {"Backpack", "backpack", "BackPack", "Hotbar", "hotbar", "Tools", "tools"}
+    for _, name in ipairs(possibleNames) do
+        local bgui = pgui:FindFirstChild(name)
+        if bgui then
+            foundGui = bgui
             break
         end
     end
     
+    -- If still not found, search ALL descendants of PlayerGui
+    if not foundGui then
+        print("[ALT BUILD] Searching all PlayerGui for tool buttons...")
+        for _, descendant in ipairs(pgui:GetDescendants()) do
+            if (descendant:IsA("TextButton") or descendant:IsA("ImageButton")) and 
+               descendant.Name == toolName then
+                toolButton = descendant
+                foundGui = descendant.Parent
+                print("[ALT BUILD] Found tool button in:", foundGui.Name)
+                break
+            end
+        end
+    end
+    
+    if not foundGui and not toolButton then
+        print("[ALT BUILD] ERROR: Could not find ANY GUI containing '" .. toolName .. "' button!")
+        return false
+    end
+    
+    -- If we found the GUI but not the button yet, search inside it
+    if not toolButton and foundGui then
+        for _, child in ipairs(foundGui:GetDescendants()) do
+            if (child:IsA("TextButton") or child:IsA("ImageButton")) and 
+               child.Name == toolName then
+                toolButton = child
+                break
+            end
+        end
+    end
+    
     if not toolButton then
-        print("[ALT BUILD] ERROR: Could not find UI button for '" .. toolName .. "'")
+        print("[ALT BUILD] ERROR: Found GUI '" .. foundGui.Name .. "' but no button named '" .. toolName .. "'")
         return false
     end
     
@@ -411,7 +437,7 @@ local commands = {
 		local pos = Vector3.new(x, y, z)
 		local size = Vector3.new(sx, sy, sz)
 		
-		-- Smart color handling
+		-- Smart color handling (handles both 0-1 floats and 0-255 ints)
 		local color = (r > 1) and Color3.fromRGB(r, g, b) or Color3.fromRGB(r * 255, g * 255, b * 255)
 		print("[ALT BUILD] Final color:", color)
 		
@@ -1890,7 +1916,7 @@ buildStatus.Parent = builderFrame
 local importedBuildData = nil
 local isBuilding = false
 
--- EXPORT (FIXED: Rounds coordinates & colors to prevent chat truncation)
+-- EXPORT (FIXED: Rounds coordinates & clamps colors to prevent 0-values)
 exportBtn.Activated:Connect(function()
 	buildStatus.Text = "Status: Scanning bricks..."
 	task.spawn(function()
@@ -1909,6 +1935,14 @@ exportBtn.Activated:Connect(function()
 				for _, brick in pairs(folder:GetChildren()) do
 					if brick:IsA("BasePart") and brick.Name == "Brick" then
 						local relPos = brick.Position - hrp.Position
+						
+						-- Debug print to verify color values during export
+						print("[EXPORT] Brick color RGB:", brick.Color.R, brick.Color.G, brick.Color.B, 
+							  "-> Saved as:", 
+							  math.max(0, math.min(255, math.round(brick.Color.R * 255))),
+							  math.max(0, math.min(255, math.round(brick.Color.G * 255))),
+							  math.max(0, math.min(255, math.round(brick.Color.B * 255))))
+						
 						table.insert(data, {
 							p = {
 								math.round(relPos.X * 100) / 100,
@@ -1917,9 +1951,9 @@ exportBtn.Activated:Connect(function()
 							},
 							s = {brick.Size.X, brick.Size.Y, brick.Size.Z},
 							c = {
-								math.round(brick.Color.R * 255),
-								math.round(brick.Color.G * 255),
-								math.round(brick.Color.B * 255)
+								math.max(0, math.min(255, math.round(brick.Color.R * 255))),
+								math.max(0, math.min(255, math.round(brick.Color.G * 255))),
+								math.max(0, math.min(255, math.round(brick.Color.B * 255)))
 							},
 							m = brick.Material.Name
 						})
