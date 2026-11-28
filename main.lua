@@ -266,6 +266,46 @@ local function say(text)
 		general:SendAsync(text)
 	end
 end
+local function equipTool(toolName)
+    -- === DIAGNOSTIC SCAN: RUN THIS ONCE TO FIND CORRECT BUTTON NAMES ===
+    print("[ALT BUILD] ========== SCANNING PLAYERGUI FOR TOOL BUTTONS ==========")
+    local pgui = player:WaitForChild("PlayerGui")
+    local foundCount = 0
+    
+    for _, descendant in ipairs(pgui:GetDescendants()) do
+        if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
+            print(string.format("  [%d] Name: '%s' | Parent: '%s' | Visible: %s", 
+                foundCount + 1, 
+                descendant.Name, 
+                descendant.Parent.Name, 
+                tostring(descendant.Visible)))
+            foundCount += 1
+            
+            -- Stop after finding first 20 buttons to avoid spamming console
+            if foundCount >= 20 then 
+                print("[ALT BUILD] ... (showing first 20 buttons only)")
+                break 
+            end
+        end
+    end
+    
+    if foundCount == 0 then
+        print("[ALT BUILD] WARNING: No TextButtons or ImageButtons found in PlayerGui!")
+    end
+    print("[ALT BUILD] ========== END SCAN ==========")
+    -- ============================================================
+    
+    -- Rest of your existing equipTool code continues below...
+    local tool = player.Backpack:FindFirstChild(toolName)
+        or (player.Character and player.Character:FindFirstChild(toolName))
+    
+    if not tool then 
+        print("[ALT BUILD] ERROR: Tool '" .. toolName .. "' not found!")
+        return false 
+    end
+    
+    -- ... rest of original function
+end
 
 -- VIRTUALUSER TOOL EQUIP FUNCTION (Expanded GUI Search)
 local function equipTool(toolName)
