@@ -1,5 +1,5 @@
 -- ==========================================
--- CORTEGE MAIN SCRIPT (Full Version + Summon + Self Select Fix + No Spam Build)
+-- CORTEGE MAIN SCRIPT (Full Version + VirtualUser Build Fix)
 -- ==========================================
 
 -- 1. Load Settings from the Loader
@@ -267,6 +267,76 @@ local function say(text)
 	end
 end
 
+-- VIRTUALUSER TOOL EQUIP FUNCTION
+local function equipTool(toolName)
+    local tool = player.Backpack:FindFirstChild(toolName)
+        or (player.Character and player.Character:FindFirstChild(toolName))
+    
+    if not tool then 
+        print("[ALT BUILD] ERROR: Tool '" .. toolName .. "' not found!")
+        return false 
+    end
+    
+    -- Check if already equipped
+    local hum = player.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        local currentTool = hum.Parent:FindFirstChildWhichIsA("Tool")
+        if currentTool and currentTool.Name == toolName then
+            print("[ALT BUILD] Tool '" .. toolName .. "' already equipped")
+            return true
+        end
+    end
+    
+    -- Find the tool button in the backpack GUI
+    local pgui = player:WaitForChild("PlayerGui")
+    local backpackGui = pgui:FindFirstChild("Backpack")
+    
+    if not backpackGui then
+        print("[ALT BUILD] ERROR: Backpack GUI not found!")
+        return false
+    end
+    
+    -- Search for the tool button
+    local toolButton = nil
+    for _, child in ipairs(backpackGui:GetDescendants()) do
+        if (child:IsA("TextButton") or child:IsA("ImageButton")) and 
+           child.Name == toolName then
+            toolButton = child
+            break
+        end
+    end
+    
+    if not toolButton then
+        print("[ALT BUILD] ERROR: Could not find UI button for '" .. toolName .. "'")
+        return false
+    end
+    
+    -- Get absolute screen position of the button
+    local absPos = toolButton.AbsolutePosition
+    local absSize = toolButton.AbsoluteSize
+    local clickPos = Vector2.new(
+        absPos.X + absSize.X / 2,
+        absPos.Y + absSize.Y / 2
+    )
+    
+    print("[ALT BUILD] Clicking tool button at:", clickPos)
+    
+    -- Simulate mouse click using VirtualUser
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton1(clickPos)
+    
+    -- Wait and verify equip succeeded
+    task.wait(0.3)
+    local newTool = hum and hum.Parent:FindFirstChildWhichIsA("Tool")
+    if newTool and newTool.Name == toolName then
+        print("[ALT BUILD] Successfully equipped '" .. toolName .. "' via click")
+        return true
+    end
+    
+    print("[ALT BUILD] WARNING: Click equip failed for '" .. toolName .. "'")
+    return false
+end
+
 local commands = {
 	jump = function()
 		local humanoid = getHumanoid()
@@ -300,7 +370,6 @@ local commands = {
 		end
 	end,
 	summon = function(args)
-		-- Alts receive this command and move to the specified player
 		local targetName = args[1]
 		if not targetName then return end
 		
@@ -315,220 +384,152 @@ local commands = {
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		
 		if humanoid and root then
-			-- Simple direct movement towards target
 			humanoid:MoveTo(targetRoot.Position)
 		end
 	end,
-build = function(args)
-    print("[ALT BUILD] ========== STARTING BUILD COMMAND ==========")
-    print("[ALT BUILD] Received args:", table.concat(args, " "))
-    
-    -- Parse arguments
-    if #args < 10 then 
-        print("[ALT BUILD] ERROR: Not enough arguments (got " .. #args .. ", need 10)")
-        return 
-    end
-    
-    local x, y, z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
-    local sx, sy, sz = tonumber(args[4]), tonumber(args[5]), tonumber(args[6])
-    local r, g, b = tonumber(args[7]), tonumber(args[8]), tonumber(args[9])
-    local material = args[10]
-    
-    print("[ALT BUILD] Parsed - Pos:", x, y, z, "Size:", sx, sy, sz, "Color:", r, g, b, "Mat:", material)
-    
-    if not (x and y and z and sx and sy and sz and r and g and b) then 
-        print("[ALT BUILD] ERROR: Failed to parse numbers")
-        return 
-    end
-    
-    local pos = Vector3.new(x, y, z)
-    local size = Vector3.new(sx, sy, sz)
-    
-    -- Smart color handling (handles both 0-1 floats and 0-255 ints)
-    local color = (r > 1) and Color3.fromRGB(r, g, b) or Color3.fromRGB(r * 255, g * 255, b * 255)
-    print("[ALT BUILD] Final color:", color)
-    
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then 
-        print("[ALT BUILD] ERROR: No HumanoidRootPart found")
-        return 
-    end
-    
-    -- Check for Build Tool
-    local buildTool = player.Backpack:FindFirstChild("Build") 
-        or (player.Character and player.Character:FindFirstChild("Build"))
-    print("[ALT BUILD] Build tool found:", buildTool ~= nil)
-    
-    if buildTool then
-        local event = buildTool:FindFirstChild("Script") and buildTool.Script:FindFirstChild("Event")
-        print("[ALT BUILD] Build remote found:", event ~= nil)
-        
-        if event then
-            local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            if hum then 
-                hum:EquipTool(buildTool)
-                task.wait(0.1)
-                print("[ALT BUILD] Equipped build tool")
-                
-                local success, err = pcall(function()
-                    event:FireServer(hrp, Enum.NormalId.Top, pos, "detailed")
-                end)
-                print("[ALT BUILD] Build FireServer - Success:", success, "Error:", err or "none")
-            else
-                print("[ALT BUILD] ERROR: No humanoid found")
-            end
-        else
-            print("[ALT BUILD] ERROR: Build tool missing Script.Event!")
-        end
-    else
-        print("[ALT BUILD] ERROR: Build tool not found in backpack or character!")
-    end
-    
-    task.wait(0.2)
-    
-    -- Check for Shape Tool
-    local shapeTool = player.Backpack:FindFirstChild("Shape") 
-        or (player.Character and player.Character:FindFirstChild("Shape"))
-    print("[ALT BUILD] Shape tool found:", shapeTool ~= nil)
-    
-    if shapeTool then
-        local event = shapeTool:FindFirstChild("Script") and shapeTool.Script:FindFirstChild("Event")
-        print("[ALT BUILD] Shape remote found:", event ~= nil)
-        
-        if event then
-            local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            if hum then 
-                hum:EquipTool(shapeTool)
-                task.wait(0.1)
-                
-                local xInc = math.max(0, math.floor((size.X - 4) / 4))
-                local yInc = math.max(0, math.floor((size.Y - 4) / 4))
-                local zInc = math.max(0, math.floor((size.Z - 4) / 4))
-                
-                print("[ALT BUILD] Shape increases - X:", xInc, "Y:", yInc, "Z:", zInc)
-                
-                for i = 1, xInc do
-                    pcall(function() event:FireServer(hrp, Enum.NormalId.Right, pos, "increase") end)
-                    task.wait(0.05)
-                end
-                for i = 1, yInc do
-                    pcall(function() event:FireServer(hrp, Enum.NormalId.Top, pos, "increase") end)
-                    task.wait(0.05)
-                end
-                for i = 1, zInc do
-                    pcall(function() event:FireServer(hrp, Enum.NormalId.Front, pos, "increase") end)
-                    task.wait(0.05)
-                end
-                print("[ALT BUILD] Shape commands sent")
-            end
-        end
-    end
-    
-    task.wait(0.2)
-    
-    -- Check for Paint Tool
-    local paintTool = player.Backpack:FindFirstChild("Paint") 
-        or (player.Character and player.Character:FindFirstChild("Paint"))
-    print("[ALT BUILD] Paint tool found:", paintTool ~= nil)
-    
-    if paintTool then
-        local event = paintTool:FindFirstChild("Script") and paintTool.Script:FindFirstChild("Event")
-        print("[ALT BUILD] Paint remote found:", event ~= nil)
-        
-        if event then
-            local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            if hum then 
-                hum:EquipTool(paintTool)
-                task.wait(0.1)
-                
-                local sides = {Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, 
-                              Enum.NormalId.Right, Enum.NormalId.Top, Enum.NormalId.Bottom}
-                
-                for _, side in ipairs(sides) do
-                    local success, err = pcall(function()
-                        event:FireServer(hrp, side, pos, "both", color, "", "")
-                    end)
-                    if not success then
-                        print("[ALT BUILD] Paint FireServer failed for side", side, "- Error:", err)
-                    end
-                    task.wait(0.03)
-                end
-                
-                if material and material ~= "Plastic" then
-                    local success, err = pcall(function()
-                        event:FireServer(hrp, Enum.NormalId.Top, pos, "material", color, material, "")
-                    end)
-                    print("[ALT BUILD] Material paint - Success:", success, "Error:", err or "none")
-                    task.wait(0.05)
-                end
-                print("[ALT BUILD] Paint commands completed")
-            end
-        end
-    end
-    
-    print("[ALT BUILD] ========== BUILD COMMAND FINISHED ==========")
-end,
+	build = function(args)
+		print("[ALT BUILD] ========== STARTING BUILD COMMAND ==========")
+		print("[ALT BUILD] Received args:", table.concat(args, " "))
 		
-		-- Use Shape Tool to resize
+		if #args < 10 then 
+			print("[ALT BUILD] ERROR: Not enough arguments (got " .. #args .. ", need 10)")
+			return 
+		end
+		
+		local x, y, z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
+		local sx, sy, sz = tonumber(args[4]), tonumber(args[5]), tonumber(args[6])
+		local r, g, b = tonumber(args[7]), tonumber(args[8]), tonumber(args[9])
+		local material = args[10]
+		
+		print("[ALT BUILD] Parsed - Pos:", x, y, z, "Size:", sx, sy, sz, "Color:", r, g, b, "Mat:", material)
+		
+		if not (x and y and z and sx and sy and sz and r and g and b) then 
+			print("[ALT BUILD] ERROR: Failed to parse numbers")
+			return 
+		end
+		
+		local pos = Vector3.new(x, y, z)
+		local size = Vector3.new(sx, sy, sz)
+		
+		-- Smart color handling
+		local color = (r > 1) and Color3.fromRGB(r, g, b) or Color3.fromRGB(r * 255, g * 255, b * 255)
+		print("[ALT BUILD] Final color:", color)
+		
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not hrp then 
+			print("[ALT BUILD] ERROR: No HumanoidRootPart found")
+			return 
+		end
+		
+		-- Build Tool
+		local buildTool = player.Backpack:FindFirstChild("Build") 
+			or (player.Character and player.Character:FindFirstChild("Build"))
+		print("[ALT BUILD] Build tool found:", buildTool ~= nil)
+		
+		if buildTool then
+			local event = buildTool:FindFirstChild("Script") and buildTool.Script:FindFirstChild("Event")
+			print("[ALT BUILD] Build remote found:", event ~= nil)
+			
+			if event then
+				if equipTool("Build") then
+					task.wait(0.1)
+					local success, err = pcall(function()
+						event:FireServer(hrp, Enum.NormalId.Top, pos, "detailed")
+					end)
+					print("[ALT BUILD] Build FireServer - Success:", success, "Error:", err or "none")
+				else
+					print("[ALT BUILD] SKIPPING BUILD: Could not equip tool")
+				end
+			else
+				print("[ALT BUILD] ERROR: Build tool missing Script.Event!")
+			end
+		else
+			print("[ALT BUILD] ERROR: Build tool not found!")
+		end
+		
+		task.wait(0.2)
+		
+		-- Shape Tool
 		local shapeTool = player.Backpack:FindFirstChild("Shape") 
 			or (player.Character and player.Character:FindFirstChild("Shape"))
+		print("[ALT BUILD] Shape tool found:", shapeTool ~= nil)
 		
 		if shapeTool then
 			local event = shapeTool:FindFirstChild("Script") and shapeTool.Script:FindFirstChild("Event")
+			print("[ALT BUILD] Shape remote found:", event ~= nil)
+			
 			if event then
-				local hum = player.Character:FindFirstChildOfClass("Humanoid")
-				if hum then hum:EquipTool(shapeTool) end
-				task.wait(0.1)
-				
-				-- Calculate increases needed (assuming base 4x4x4)
-				local xInc = math.max(0, math.floor((size.X - 4) / 4))
-				local yInc = math.max(0, math.floor((size.Y - 4) / 4))
-				local zInc = math.max(0, math.floor((size.Z - 4) / 4))
-				
-				for _ = 1, xInc do
-					pcall(function() event:FireServer(hrp, Enum.NormalId.Right, pos, "increase") end)
-					task.wait(0.05)
-				end
-				for _ = 1, yInc do
-					pcall(function() event:FireServer(hrp, Enum.NormalId.Top, pos, "increase") end)
-					task.wait(0.05)
-				end
-				for _ = 1, zInc do
-					pcall(function() event:FireServer(hrp, Enum.NormalId.Front, pos, "increase") end)
-					task.wait(0.05)
+				if equipTool("Shape") then
+					task.wait(0.1)
+					
+					local xInc = math.max(0, math.floor((size.X - 4) / 4))
+					local yInc = math.max(0, math.floor((size.Y - 4) / 4))
+					local zInc = math.max(0, math.floor((size.Z - 4) / 4))
+					
+					print("[ALT BUILD] Shape increases - X:", xInc, "Y:", yInc, "Z:", zInc)
+					
+					for i = 1, xInc do
+						pcall(function() event:FireServer(hrp, Enum.NormalId.Right, pos, "increase") end)
+						task.wait(0.05)
+					end
+					for i = 1, yInc do
+						pcall(function() event:FireServer(hrp, Enum.NormalId.Top, pos, "increase") end)
+						task.wait(0.05)
+					end
+					for i = 1, zInc do
+						pcall(function() event:FireServer(hrp, Enum.NormalId.Front, pos, "increase") end)
+						task.wait(0.05)
+					end
+					print("[ALT BUILD] Shape commands sent")
+				else
+					print("[ALT BUILD] SKIPPING SHAPE: Could not equip tool")
 				end
 			end
 		end
 		
-		-- Use Paint Tool for color/material
+		task.wait(0.2)
+		
+		-- Paint Tool
 		local paintTool = player.Backpack:FindFirstChild("Paint") 
 			or (player.Character and player.Character:FindFirstChild("Paint"))
+		print("[ALT BUILD] Paint tool found:", paintTool ~= nil)
 		
 		if paintTool then
 			local event = paintTool:FindFirstChild("Script") and paintTool.Script:FindFirstChild("Event")
+			print("[ALT BUILD] Paint remote found:", event ~= nil)
+			
 			if event then
-				local hum = player.Character:FindFirstChildOfClass("Humanoid")
-				if hum then hum:EquipTool(paintTool) end
-				task.wait(0.1)
-				
-				local sides = {Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, 
-							  Enum.NormalId.Right, Enum.NormalId.Top, Enum.NormalId.Bottom}
-				
-				for _, side in ipairs(sides) do
-					pcall(function()
-						event:FireServer(hrp, side, pos, "both", color, "", "")
-					end)
-					task.wait(0.03)
-				end
-				
-				if material and material ~= "Plastic" then
-					pcall(function()
-						event:FireServer(hrp, Enum.NormalId.Top, pos, "material", color, material, "")
-					end)
-					task.wait(0.05)
+				if equipTool("Paint") then
+					task.wait(0.1)
+					
+					local sides = {Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, 
+								  Enum.NormalId.Right, Enum.NormalId.Top, Enum.NormalId.Bottom}
+					
+					for _, side in ipairs(sides) do
+						local success, err = pcall(function()
+							event:FireServer(hrp, side, pos, "both", color, "", "")
+						end)
+						if not success then
+							print("[ALT BUILD] Paint FireServer failed for side", side, "- Error:", err)
+						end
+						task.wait(0.03)
+					end
+					
+					if material and material ~= "Plastic" then
+						local success, err = pcall(function()
+							event:FireServer(hrp, Enum.NormalId.Top, pos, "material", color, material, "")
+						end)
+						print("[ALT BUILD] Material paint - Success:", success, "Error:", err or "none")
+						task.wait(0.05)
+					end
+					print("[ALT BUILD] Paint commands completed")
+				else
+					print("[ALT BUILD] SKIPPING PAINT: Could not equip tool")
 				end
 			end
 		end
+		
+		print("[ALT BUILD] ========== BUILD COMMAND FINISHED ==========")
 	end,
 }
 
@@ -836,7 +837,6 @@ local function handleMessage(senderName, text)
 		followId += 1
 		followingName = nil
 	elseif name == "summon" then
-		-- Handle summon command received by alts
 		commands.summon(args)
 	elseif commands[name] then
 		commands[name](args)
@@ -1253,7 +1253,6 @@ local stopFollowButton = followButton("Stop", 138, Color3.fromRGB(110, 65, 65))
 stopFollowButton.Position = UDim2.new(0.5, 5, 0, 138)
 stopFollowButton.Size = UDim2.new(0.5, -15, 0, 32)
 
--- SUMMON BUTTON ADDED HERE
 local summonButton = followButton("Summon Alts", 180, Color3.fromRGB(130, 175, 255))
 summonButton.Size = UDim2.new(1, -20, 0, 32)
 
@@ -1291,15 +1290,12 @@ stopFollowButton.Activated:Connect(function()
 	end
 end)
 
--- SUMMON LOGIC
 summonButton.Activated:Connect(function()
 	if hasRole(player.Name, "Main") then
-		-- Send summon command to all alts
 		relayCommand(PREFIX .. "summon " .. player.Name)
 		followStatus.Text = "Status: Summoning alts..."
 		task.delay(2, function() followStatus.Text = "Idle" end)
 	else
-		-- If running locally as an alt, just move to self (debug)
 		commands.summon({player.Name})
 	end
 end)
@@ -1726,7 +1722,7 @@ destructionPage.BorderSizePixel = 0
 destructionPage.Visible = false
 destructionPage.ScrollBarThickness = 4
 destructionPage.ScrollBarImageColor3 = Color3.fromRGB(88, 101, 242)
-destructionPage.CanvasSize = UDim2.new(0, 0, 0, 450) -- FIXED: Added scrolling
+destructionPage.CanvasSize = UDim2.new(0, 0, 0, 450)
 destructionPage.Parent = frame
 
 -- === GRIEFING SECTION ===
@@ -1754,7 +1750,7 @@ dropdownFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 dropdownFrame.Visible = false
 dropdownFrame.ZIndex = 10
 dropdownFrame.ClipsDescendants = false
-dropdownFrame.Parent = gui -- Parented to GUI to avoid clipping
+dropdownFrame.Parent = gui
 round(dropdownFrame)
 
 local dropdownLayout = Instance.new("UIListLayout")
@@ -1894,29 +1890,7 @@ buildStatus.Parent = builderFrame
 local importedBuildData = nil
 local isBuilding = false
 
-local function getToolRemote(toolName)
-	local tool = player.Backpack:FindFirstChild(toolName) 
-		or (player.Character and player.Character:FindFirstChild(toolName))
-	if tool then
-		local s = tool:FindFirstChild("Script")
-		if s then return s:FindFirstChild("Event"), tool end
-	end
-	return nil, nil
-end
-
-local function equipTool(toolName)
-	local tool = player.Backpack:FindFirstChild(toolName)
-	if not tool then return false end
-	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-	if hum then
-		hum:EquipTool(tool)
-		task.wait(0.1)
-		return true
-	end
-	return false
-end
-
--- EXPORT (FIXED: Rounds coordinates to prevent chat truncation)
+-- EXPORT (FIXED: Rounds coordinates & colors to prevent chat truncation)
 exportBtn.Activated:Connect(function()
 	buildStatus.Text = "Status: Scanning bricks..."
 	task.spawn(function()
@@ -1976,7 +1950,7 @@ exportBtn.Activated:Connect(function()
 	end)
 end)
 
--- IMPORT (Unchanged)
+-- IMPORT
 importBtn.Activated:Connect(function()
 	local text = jsonBox.Text
 	if text == "" then
@@ -1996,7 +1970,7 @@ importBtn.Activated:Connect(function()
 	end
 end)
 
--- BUILD (FIXED: Batched chat relay with length validation)
+-- BUILD (Batched chat relay with length validation)
 local function startBuilding()
 	if not importedBuildData then
 		buildStatus.Text = "Status: Load JSON first"
@@ -2025,8 +1999,8 @@ local function startBuilding()
 		
 		local totalBlocks = #importedBuildData
 		local sentCount = 0
-		local batchSize = 3 -- Reduced from 5 to ensure no rate limits
-		local batchDelay = 2.0 -- Increased delay for safety
+		local batchSize = 3
+		local batchDelay = 2.0
 		
 		for i, block in ipairs(importedBuildData) do
 			if not isBuilding then break end
@@ -2076,7 +2050,6 @@ stopBuildBtn.Activated:Connect(function()
 	buildBtn.Text = "Start Building"
 	buildStatus.Text = "Status: Build Stopped"
 end)
--- ==========================================
 
 -- ==========================================
 -- DESTRUCTION LOGIC (Dropdown & Griefing)
@@ -2091,7 +2064,6 @@ local TEXT_START = "Start Grief"
 local TEXT_STOP = "Stop Grief"
 local ws = 0.05
 
--- Helper functions for dropdown
 local function createDropdownButton(text, isSelected)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, 0, 0, 28)
@@ -2166,7 +2138,7 @@ local function populateDropdown()
 		applyHighlights()
 	end)
 
-	-- FIXED: Removed "if plr ~= player" check so you CAN select yourself
+	-- FIXED: Removed "if plr ~= player" so you CAN select yourself
 	for _, plr in pairs(Players:GetPlayers()) do
 		local btn = createDropdownButton(plr.Name, selectedTargets[plr.Name])
 		btn.Activated:Connect(function()
@@ -2206,7 +2178,6 @@ end
 updateSelectBtnText()
 applyHighlights()
 
--- Griefing Logic
 local function getSelectedPlayers()
 	local players = {}
 	if selectedTargets["ALL"] then
