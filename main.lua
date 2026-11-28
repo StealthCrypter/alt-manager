@@ -1,5 +1,5 @@
 -- ==========================================
--- CORTEGE MAIN SCRIPT (Full Version + Summon + Self Select Fix)
+-- CORTEGE MAIN SCRIPT (Full Version + Summon + Self Select Fix + No Spam Build)
 -- ==========================================
 
 -- 1. Load Settings from the Loader
@@ -1676,8 +1676,104 @@ griefStatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 griefStatusLabel.Text = ""
 griefStatusLabel.Parent = destructionPage
 
+-- === BUILDER TOOLS SECTION ===
+local builderFrame = Instance.new("Frame")
+builderFrame.Position = UDim2.fromOffset(10, 130)
+builderFrame.Size = UDim2.new(1, -20, 0, 260)
+builderFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+builderFrame.BorderSizePixel = 0
+builderFrame.Parent = destructionPage
+round(builderFrame)
+
+local builderTitle = Instance.new("TextLabel")
+builderTitle.Size = UDim2.new(1, 0, 0, 25)
+builderTitle.BackgroundTransparency = 1
+builderTitle.Text = "Builder Tools"
+builderTitle.TextColor3 = Color3.fromRGB(130, 175, 255)
+builderTitle.Font = Enum.Font.GothamBold
+builderTitle.TextSize = 14
+builderTitle.TextXAlignment = Enum.TextXAlignment.Left
+builderTitle.Parent = builderFrame
+
+local exportBtn = Instance.new("TextButton")
+exportBtn.Position = UDim2.fromOffset(10, 30)
+exportBtn.Size = UDim2.new(1, -20, 0, 30)
+exportBtn.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
+exportBtn.BorderSizePixel = 0
+exportBtn.Text = "Export Selected Bricks to JSON"
+exportBtn.TextColor3 = Color3.new(1, 1, 1)
+exportBtn.Font = Enum.Font.GothamBold
+exportBtn.TextSize = 13
+exportBtn.Parent = builderFrame
+round(exportBtn)
+
+local jsonBox = Instance.new("TextBox")
+jsonBox.Position = UDim2.fromOffset(10, 70)
+jsonBox.Size = UDim2.new(1, -20, 0, 60)
+jsonBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
+jsonBox.BorderSizePixel = 0
+jsonBox.PlaceholderText = "Paste JSON code here..."
+jsonBox.PlaceholderColor3 = Color3.fromRGB(170, 170, 175)
+jsonBox.Text = ""
+jsonBox.TextColor3 = Color3.new(1, 1, 1)
+jsonBox.Font = Enum.Font.Gotham
+jsonBox.TextSize = 12
+jsonBox.TextWrapped = true
+jsonBox.TextXAlignment = Enum.TextXAlignment.Left
+jsonBox.TextYAlignment = Enum.TextYAlignment.Top
+jsonBox.ClearTextOnFocus = false
+jsonBox.Parent = builderFrame
+round(jsonBox)
+
+local importBtn = Instance.new("TextButton")
+importBtn.Position = UDim2.fromOffset(10, 140)
+importBtn.Size = UDim2.fromOffset(190, 30)
+importBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
+importBtn.BorderSizePixel = 0
+importBtn.Text = "Load JSON"
+importBtn.TextColor3 = Color3.new(1, 1, 1)
+importBtn.Font = Enum.Font.GothamBold
+importBtn.TextSize = 13
+importBtn.Parent = builderFrame
+round(importBtn)
+
+local buildBtn = Instance.new("TextButton")
+buildBtn.Position = UDim2.fromOffset(10, 180)
+buildBtn.Size = UDim2.fromOffset(190, 30)
+buildBtn.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
+buildBtn.BorderSizePixel = 0
+buildBtn.Text = "Start Building"
+buildBtn.TextColor3 = Color3.new(1, 1, 1)
+buildBtn.Font = Enum.Font.GothamBold
+buildBtn.TextSize = 13
+buildBtn.Parent = builderFrame
+round(buildBtn)
+
+local stopBuildBtn = Instance.new("TextButton")
+stopBuildBtn.Position = UDim2.fromOffset(210, 180)
+stopBuildBtn.Size = UDim2.fromOffset(190, 30)
+stopBuildBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+stopBuildBtn.BorderSizePixel = 0
+stopBuildBtn.Text = "Stop Building"
+stopBuildBtn.TextColor3 = Color3.new(1, 1, 1)
+stopBuildBtn.Font = Enum.Font.GothamBold
+stopBuildBtn.TextSize = 13
+stopBuildBtn.Parent = builderFrame
+round(stopBuildBtn)
+
+local buildStatus = Instance.new("TextLabel")
+buildStatus.Position = UDim2.fromOffset(10, 220)
+buildStatus.Size = UDim2.new(1, -20, 0, 30)
+buildStatus.BackgroundTransparency = 1
+buildStatus.Text = "Status: Idle"
+buildStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
+buildStatus.Font = Enum.Font.GothamBold
+buildStatus.TextSize = 12
+buildStatus.TextXAlignment = Enum.TextXAlignment.Left
+buildStatus.Parent = builderFrame
+
 -- ==========================================
--- BUILDER TOOLS LOGIC (Workspace Relay - No Chat Spam)
+-- WORKSPACE RELAY SETUP (Prevents Chat Spam)
 -- ==========================================
 local importedBuildData = nil
 local isBuilding = false
@@ -1704,6 +1800,41 @@ task.spawn(function()
     end)
 end)
 
+-- ALTS: WORKSPACE RELAY LISTENER FOR BUILDING
+task.spawn(function()
+    while not destroyed do
+        task.wait(0.1)
+        
+        -- Only alts should listen for build commands via relay
+        if hasRole(player.Name, "Alt") then
+            for _, account in ipairs(accounts) do
+                if account.Role == "Main" then
+                    local mainRelay = workspace:FindFirstChild("CortegeRelay_" .. account.Name)
+                    if mainRelay then
+                        local cmdValue = mainRelay:FindFirstChild("Cmd")
+                        if cmdValue and cmdValue.Value ~= "" then
+                            local cmd = cmdValue.Value
+                            cmdValue.Value = "" -- Clear immediately after reading
+                            
+                            -- Parse and execute the build command
+                            local args = {}
+                            for word in cmd:gmatch("%S+") do
+                                table.insert(args, word)
+                            end
+                            -- Remove the "!build" prefix
+                            table.remove(args, 1)
+                            
+                            if commands.build then
+                                commands.build(args)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
 local function getToolRemote(toolName)
 	local tool = player.Backpack:FindFirstChild(toolName) 
 		or (player.Character and player.Character:FindFirstChild(toolName))
@@ -1726,7 +1857,7 @@ local function equipTool(toolName)
 	return false
 end
 
--- EXPORT (Unchanged)
+-- EXPORT
 exportBtn.Activated:Connect(function()
 	buildStatus.Text = "Status: Scanning bricks..."
 	task.spawn(function()
@@ -1779,7 +1910,7 @@ exportBtn.Activated:Connect(function()
 	end)
 end)
 
--- IMPORT (Unchanged)
+-- IMPORT
 importBtn.Activated:Connect(function()
 	local text = jsonBox.Text
 	if text == "" then
@@ -1883,7 +2014,7 @@ stopBuildBtn.Activated:Connect(function()
 end)
 
 -- ==========================================
--- LOGIC
+-- DESTRUCTION LOGIC (Dropdown & Griefing)
 -- ==========================================
 local isGriefing = false
 local griefLoop = nil
@@ -2180,8 +2311,8 @@ toggleGriefButton.Activated:Connect(function()
 	end
 end)
 
-
-if isGriefing then stopGrief() end
+gui.Destroying:Connect(function()
+	if isGriefing then stopGrief() end
 	clearHighlights()
 	dropdownFrame:Destroy()
 end)
