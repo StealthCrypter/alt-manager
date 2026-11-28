@@ -332,7 +332,8 @@ local commands = {
 		
 		local pos = Vector3.new(x, y, z)
 		local size = Vector3.new(sx, sy, sz)
-		local color = Color3.fromRGB(r, g, b)
+		-- Check if values are already 0-255 or still 0-1 floats
+local color = (r > 1) and Color3.fromRGB(r, g, b) or Color3.fromRGB(r * 255, g * 255, b * 255)
 		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if not hrp then return end
 		
