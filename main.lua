@@ -1,5 +1,5 @@
 -- ==========================================
--- CORTEGE MAIN SCRIPT
+-- CORTEGE MAIN SCRIPT (Full Version)
 -- ==========================================
 
 -- 1. Load Settings from the Loader
@@ -29,6 +29,7 @@ local UserInputService = game:GetService("UserInputService")
 local TextChatService = game:GetService("TextChatService")
 local PathfindingService = game:GetService("PathfindingService")
 local VirtualUser = game:GetService("VirtualUser")
+local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -58,7 +59,7 @@ frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-frame.ClipsDescendants = false
+frame.ClipsDescendants = true
 frame.Parent = gui
 round(frame, 8)
 
@@ -296,6 +297,101 @@ local commands = {
 		local text = table.concat(args, " ")
 		if text ~= "" then
 			say(text)
+		end
+	end,
+	build = function(args)
+		-- Args: x y z sx sy sz r g b material
+		if #args < 10 then return end
+		
+		local x, y, z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
+		local sx, sy, sz = tonumber(args[4]), tonumber(args[5]), tonumber(args[6])
+		local r, g, b = tonumber(args[7]), tonumber(args[8]), tonumber(args[9])
+		local material = args[10]
+		
+		if not (x and y and z and sx and sy and sz and r and g and b) then return end
+		
+		local pos = Vector3.new(x, y, z)
+		local size = Vector3.new(sx, sy, sz)
+		local color = Color3.fromRGB(r, g, b)
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not hrp then return end
+		
+		-- Use Build Tool
+		local buildTool = player.Backpack:FindFirstChild("Build") 
+			or (player.Character and player.Character:FindFirstChild("Build"))
+		
+		if buildTool then
+			local event = buildTool:FindFirstChild("Script") and buildTool.Script:FindFirstChild("Event")
+			if event then
+				local hum = player.Character:FindFirstChildOfClass("Humanoid")
+				if hum then hum:EquipTool(buildTool) end
+				task.wait(0.1)
+				pcall(function()
+					event:FireServer(hrp, Enum.NormalId.Top, pos, "detailed")
+				end)
+				task.wait(0.1)
+			end
+		end
+		
+		-- Use Shape Tool to resize
+		local shapeTool = player.Backpack:FindFirstChild("Shape") 
+			or (player.Character and player.Character:FindFirstChild("Shape"))
+		
+		if shapeTool then
+			local event = shapeTool:FindFirstChild("Script") and shapeTool.Script:FindFirstChild("Event")
+			if event then
+				local hum = player.Character:FindFirstChildOfClass("Humanoid")
+				if hum then hum:EquipTool(shapeTool) end
+				task.wait(0.1)
+				
+				-- Calculate increases needed (assuming base 4x4x4)
+				local xInc = math.max(0, math.floor((size.X - 4) / 4))
+				local yInc = math.max(0, math.floor((size.Y - 4) / 4))
+				local zInc = math.max(0, math.floor((size.Z - 4) / 4))
+				
+				for _ = 1, xInc do
+					pcall(function() event:FireServer(hrp, Enum.NormalId.Right, pos, "increase") end)
+					task.wait(0.05)
+				end
+				for _ = 1, yInc do
+					pcall(function() event:FireServer(hrp, Enum.NormalId.Top, pos, "increase") end)
+					task.wait(0.05)
+				end
+				for _ = 1, zInc do
+					pcall(function() event:FireServer(hrp, Enum.NormalId.Front, pos, "increase") end)
+					task.wait(0.05)
+				end
+			end
+		end
+		
+		-- Use Paint Tool for color/material
+		local paintTool = player.Backpack:FindFirstChild("Paint") 
+			or (player.Character and player.Character:FindFirstChild("Paint"))
+		
+		if paintTool then
+			local event = paintTool:FindFirstChild("Script") and paintTool.Script:FindFirstChild("Event")
+			if event then
+				local hum = player.Character:FindFirstChildOfClass("Humanoid")
+				if hum then hum:EquipTool(paintTool) end
+				task.wait(0.1)
+				
+				local sides = {Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, 
+							  Enum.NormalId.Right, Enum.NormalId.Top, Enum.NormalId.Bottom}
+				
+				for _, side in ipairs(sides) do
+					pcall(function()
+						event:FireServer(hrp, side, pos, "both", color, "", "")
+					end)
+					task.wait(0.03)
+				end
+				
+				if material and material ~= "Plastic" then
+					pcall(function()
+						event:FireServer(hrp, Enum.NormalId.Top, pos, "material", color, material, "")
+					end)
+					task.wait(0.05)
+				end
+			end
 		end
 	end,
 }
@@ -1461,7 +1557,7 @@ gui.Destroying:Connect(function()
 end)
 
 -- ==========================================
--- DESTRUCTION PAGE (Dropdown + Highlights)
+-- DESTRUCTION PAGE (Dropdown + Highlights + Builder Tools)
 -- ==========================================
 local destructionPage = Instance.new("Frame")
 destructionPage.Position = UDim2.fromOffset(0, 72)
@@ -1471,6 +1567,7 @@ destructionPage.BorderSizePixel = 0
 destructionPage.Visible = false
 destructionPage.Parent = frame
 
+-- === GRIEFING SECTION ===
 local selectTargetsBtn = Instance.new("TextButton")
 selectTargetsBtn.Position = UDim2.fromOffset(10, 12)
 selectTargetsBtn.Size = UDim2.new(1, -20, 0, 32)
@@ -1484,8 +1581,8 @@ selectTargetsBtn.Parent = destructionPage
 round(selectTargetsBtn)
 
 local dropdownFrame = Instance.new("ScrollingFrame")
-dropdownFrame.Position = UDim2.fromOffset(32, 166)
-dropdownFrame.Size = UDim2.new(0, 380, 0, 150)
+dropdownFrame.Position = UDim2.fromOffset(10, 50)
+dropdownFrame.Size = UDim2.new(1, -20, 0, 150)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
 dropdownFrame.BorderSizePixel = 0
 dropdownFrame.ScrollBarThickness = 4
@@ -1495,7 +1592,7 @@ dropdownFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 dropdownFrame.Visible = false
 dropdownFrame.ZIndex = 10
 dropdownFrame.ClipsDescendants = false
-dropdownFrame.Parent = gui
+dropdownFrame.Parent = gui -- Parented to GUI to avoid clipping
 round(dropdownFrame)
 
 local dropdownLayout = Instance.new("UIListLayout")
@@ -1533,6 +1630,105 @@ griefStatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 griefStatusLabel.Text = ""
 griefStatusLabel.Parent = destructionPage
 
+-- === BUILDER TOOLS SECTION ===
+local builderFrame = Instance.new("Frame")
+builderFrame.Position = UDim2.fromOffset(10, 130)
+builderFrame.Size = UDim2.new(1, -20, 0, 260)
+builderFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+builderFrame.BorderSizePixel = 0
+builderFrame.Parent = destructionPage
+round(builderFrame)
+
+local builderTitle = Instance.new("TextLabel")
+builderTitle.Size = UDim2.new(1, 0, 0, 25)
+builderTitle.BackgroundTransparency = 1
+builderTitle.Text = "Builder Tools"
+builderTitle.TextColor3 = Color3.fromRGB(130, 175, 255)
+builderTitle.Font = Enum.Font.GothamBold
+builderTitle.TextSize = 14
+builderTitle.TextXAlignment = Enum.TextXAlignment.Left
+builderTitle.Parent = builderFrame
+
+local exportBtn = Instance.new("TextButton")
+exportBtn.Position = UDim2.fromOffset(10, 30)
+exportBtn.Size = UDim2.new(1, -20, 0, 30)
+exportBtn.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
+exportBtn.BorderSizePixel = 0
+exportBtn.Text = "Export Selected Bricks to JSON"
+exportBtn.TextColor3 = Color3.new(1, 1, 1)
+exportBtn.Font = Enum.Font.GothamBold
+exportBtn.TextSize = 13
+exportBtn.Parent = builderFrame
+round(exportBtn)
+
+local jsonBox = Instance.new("TextBox")
+jsonBox.Position = UDim2.fromOffset(10, 70)
+jsonBox.Size = UDim2.new(1, -20, 0, 60)
+jsonBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
+jsonBox.BorderSizePixel = 0
+jsonBox.PlaceholderText = "Paste JSON code here..."
+jsonBox.PlaceholderColor3 = Color3.fromRGB(170, 170, 175)
+jsonBox.Text = ""
+jsonBox.TextColor3 = Color3.new(1, 1, 1)
+jsonBox.Font = Enum.Font.Gotham
+jsonBox.TextSize = 12
+jsonBox.TextWrapped = true
+jsonBox.TextXAlignment = Enum.TextXAlignment.Left
+jsonBox.TextYAlignment = Enum.TextYAlignment.Top
+jsonBox.ClearTextOnFocus = false
+jsonBox.Parent = builderFrame
+round(jsonBox)
+
+local importBtn = Instance.new("TextButton")
+importBtn.Position = UDim2.fromOffset(10, 140)
+importBtn.Size = UDim2.fromOffset(190, 30)
+importBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
+importBtn.BorderSizePixel = 0
+importBtn.Text = "Load JSON"
+importBtn.TextColor3 = Color3.new(1, 1, 1)
+importBtn.Font = Enum.Font.GothamBold
+importBtn.TextSize = 13
+importBtn.Parent = builderFrame
+round(importBtn)
+
+local buildBtn = Instance.new("TextButton")
+buildBtn.Position = UDim2.fromOffset(10, 180)
+buildBtn.Size = UDim2.fromOffset(190, 30)
+buildBtn.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
+buildBtn.BorderSizePixel = 0
+buildBtn.Text = "Start Building"
+buildBtn.TextColor3 = Color3.new(1, 1, 1)
+buildBtn.Font = Enum.Font.GothamBold
+buildBtn.TextSize = 13
+buildBtn.Parent = builderFrame
+round(buildBtn)
+
+local stopBuildBtn = Instance.new("TextButton")
+stopBuildBtn.Position = UDim2.fromOffset(210, 180)
+stopBuildBtn.Size = UDim2.fromOffset(190, 30)
+stopBuildBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
+stopBuildBtn.BorderSizePixel = 0
+stopBuildBtn.Text = "Stop Building"
+stopBuildBtn.TextColor3 = Color3.new(1, 1, 1)
+stopBuildBtn.Font = Enum.Font.GothamBold
+stopBuildBtn.TextSize = 13
+stopBuildBtn.Parent = builderFrame
+round(stopBuildBtn)
+
+local buildStatus = Instance.new("TextLabel")
+buildStatus.Position = UDim2.fromOffset(10, 220)
+buildStatus.Size = UDim2.new(1, -20, 0, 30)
+buildStatus.BackgroundTransparency = 1
+buildStatus.Text = "Status: Idle"
+buildStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
+buildStatus.Font = Enum.Font.GothamBold
+buildStatus.TextSize = 12
+buildStatus.TextXAlignment = Enum.TextXAlignment.Left
+buildStatus.Parent = builderFrame
+
+-- ==========================================
+-- LOGIC
+-- ==========================================
 local isGriefing = false
 local griefLoop = nil
 local selectedTargets = {}
@@ -1543,6 +1739,7 @@ local TEXT_START = "Start Grief"
 local TEXT_STOP = "Stop Grief"
 local ws = 0.05
 
+-- Helper functions for dropdown
 local function createDropdownButton(text, isSelected)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, 0, 0, 28)
@@ -1658,6 +1855,7 @@ end
 updateSelectBtnText()
 applyHighlights()
 
+-- Griefing Logic
 local function getSelectedPlayers()
 	local players = {}
 	if selectedTargets["ALL"] then
@@ -1825,6 +2023,184 @@ toggleGriefButton.Activated:Connect(function()
 	else
 		startGrief()
 	end
+end)
+
+-- ==========================================
+-- BUILDER TOOLS LOGIC (With Alt Support)
+-- ==========================================
+local importedBuildData = nil
+local isBuilding = false
+
+local function getToolRemote(toolName)
+	local tool = player.Backpack:FindFirstChild(toolName) 
+		or (player.Character and player.Character:FindFirstChild(toolName))
+	if tool then
+		local s = tool:FindFirstChild("Script")
+		if s then return s:FindFirstChild("Event"), tool end
+	end
+	return nil, nil
+end
+
+local function equipTool(toolName)
+	local tool = player.Backpack:FindFirstChild(toolName)
+	if not tool then return false end
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum:EquipTool(tool)
+		task.wait(0.1)
+		return true
+	end
+	return false
+end
+
+-- EXPORT
+exportBtn.Activated:Connect(function()
+	buildStatus.Text = "Status: Scanning bricks..."
+	task.spawn(function()
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not hrp then 
+			buildStatus.Text = "Status: Error (No Character)"
+			return 
+		end
+
+		local data = {}
+		local count = 0
+		
+		for _, folder in pairs(workspace.Bricks:GetChildren()) do
+			local shouldScan = selectedTargets["ALL"] or selectedTargets[folder.Name]
+			if shouldScan then
+				for _, brick in pairs(folder:GetChildren()) do
+					if brick:IsA("BasePart") and brick.Name == "Brick" then
+						local relPos = brick.Position - hrp.Position
+						table.insert(data, {
+							p = {relPos.X, relPos.Y, relPos.Z},
+							s = {brick.Size.X, brick.Size.Y, brick.Size.Z},
+							c = {brick.Color.R, brick.Color.G, brick.Color.B},
+							m = brick.Material.Name,
+							a = brick.Anchored
+						})
+						count += 1
+					end
+				end
+			end
+		end
+
+		if count == 0 then
+			buildStatus.Text = "Status: No bricks found for selection"
+			return
+		end
+
+		local json = HttpService:JSONEncode(data)
+		
+		if #json > 50000 then
+			buildStatus.Text = "Status: Warning (JSON too large for clipboard)"
+			print("JSON too large, check output for data")
+		else
+			if setclipboard then
+				setclipboard(json)
+				buildStatus.Text = "Status: Copied " .. count .. " blocks to clipboard!"
+			else
+				buildStatus.Text = "Status: Executor missing setclipboard()"
+			end
+		end
+	end)
+end)
+
+-- IMPORT
+importBtn.Activated:Connect(function()
+	local text = jsonBox.Text
+	if text == "" then
+		buildStatus.Text = "Status: Paste JSON first"
+		return
+	end
+	
+	local success, data = pcall(function()
+		return HttpService:JSONDecode(text)
+	end)
+	
+	if success and type(data) == "table" then
+		importedBuildData = data
+		buildStatus.Text = "Status: Loaded " .. #data .. " blocks ready to build"
+	else
+		buildStatus.Text = "Status: Invalid JSON format"
+	end
+end)
+
+-- BUILD (Sends commands to Alts via Chat Relay)
+local function startBuilding()
+	if not importedBuildData then
+		buildStatus.Text = "Status: Load JSON first"
+		return
+	end
+	
+	-- Find alt accounts to send build commands to
+	local altAccounts = {}
+	for _, account in ipairs(accounts) do
+		if account.Role == "Alt" then
+			table.insert(altAccounts, account.Name)
+		end
+	end
+	
+	if #altAccounts == 0 then
+		buildStatus.Text = "Status: No Alt Accounts Found!"
+		return
+	end
+	
+	isBuilding = true
+	buildBtn.Text = "Building..."
+	buildStatus.Text = "Status: Sending Build Commands..."
+	
+	task.spawn(function()
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not hrp then return end
+		
+		local totalBlocks = #importedBuildData
+		local sentCount = 0
+		
+		for i, block in ipairs(importedBuildData) do
+			if not isBuilding then break end
+			
+			local targetPos = hrp.Position + Vector3.new(block.p[1], block.p[2], block.p[3])
+			local size = Vector3.new(block.s[1], block.s[2], block.s[3])
+			local color = Color3.new(block.c[1], block.c[2], block.c[3])
+			local material = block.m
+			
+			-- Send build command to a random alt to distribute load
+			local altName = altAccounts[((i - 1) % #altAccounts) + 1]
+			
+			-- Format: !build x y z sx sy sz r g b material
+			local buildCmd = string.format("!build %.1f %.1f %.1f %.1f %.1f %.1f %d %d %d %s", 
+				targetPos.X, targetPos.Y, targetPos.Z,
+				size.X, size.Y, size.Z,
+				color.R * 255, color.G * 255, color.B * 255,
+				material
+			)
+			
+			relayCommand(buildCmd)
+			sentCount += 1
+			
+			if i % 10 == 0 then
+				buildStatus.Text = string.format("Status: Sent %d/%d blocks", sentCount, totalBlocks)
+				task.wait(0.1) -- Rate limit to prevent chat spam
+			end
+		end
+		
+		isBuilding = false
+		buildBtn.Text = "Start Building"
+		buildStatus.Text = "Status: Build Complete (" .. sentCount .. " commands sent)"
+	end)
+end
+
+buildBtn.Activated:Connect(function()
+	if not isBuilding then
+		startBuilding()
+	end
+end)
+
+stopBuildBtn.Activated:Connect(function()
+	isBuilding = false
+	buildBtn.Text = "Start Building"
+	buildStatus.Text = "Status: Build Stopped"
 end)
 
 gui.Destroying:Connect(function()
