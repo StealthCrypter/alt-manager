@@ -21,14 +21,16 @@ if Settings.altAccounts then
     end
 end
 
--- 3. Rest of your script variables...
+-- 3. Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
--- ... (keep all your other services and UI creation code exactly as it is) ...
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local player = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local PathfindingService = game:GetService("PathfindingService")
+local VirtualUser = game:GetService("VirtualUser")
 
+local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 for _, old in ipairs(playerGui:GetChildren()) do
@@ -157,9 +159,6 @@ local removeButton = makeButton(
 )
 removeButton.BackgroundColor3 = Color3.fromRGB(160, 70, 70)
 
-local accounts = {}
-local selectedIndex
-
 local function refresh()
 	for _, child in ipairs(accountList:GetChildren()) do
 		if child:IsA("TextButton") or child:IsA("TextLabel") then
@@ -243,9 +242,6 @@ commandToggle.Activated:Connect(function()
 end)
 
 refresh()
-
-local TextChatService = game:GetService("TextChatService")
-local PREFIX = "!"
 
 local function hasRole(username, role)
 	username = username:lower()
@@ -399,7 +395,6 @@ local function startLoop(interval, command, args)
 	end)
 end
 
-local PathfindingService = game:GetService("PathfindingService")
 local followId = 0
 local followingName
 local followingMode
@@ -774,12 +769,10 @@ local function faq(heading, body)
 	faqText(body, false)
 end
 
-faq("Setup", "Run on every account. Main chats !setalts alt1 alt2, or add usernames by hand.")
-faq("Toggle", "Commands are ON by default. Turn the toggle OFF (or chat !off) to pause the alts.")
-faq("Commands", "!jump  !sit  !speed n  !stop  !say text\n!spin [n]  !unspin  !wave  !dance  !cheer  !laugh  !point\n!follow [mode] [studs]  !unfollow  !ping on/off\nModes: pf direct orbit line circle vee grid wall\n!loop secs cmd  !stoploop")
+faq("Setup", "Run on every account. Main chats " .. PREFIX .. "setalts alt1 alt2, or add usernames by hand.")
+faq("Toggle", "Commands are ON by default. Turn the toggle OFF (or chat " .. PREFIX .. "off) to pause the alts.")
+faq("Commands", PREFIX .. "jump  " .. PREFIX .. "sit  " .. PREFIX .. "speed n  " .. PREFIX .. "stop  " .. PREFIX .. "say text\n" .. PREFIX .. "spin [n]  " .. PREFIX .. "unspin  " .. PREFIX .. "wave  " .. PREFIX .. "dance  " .. PREFIX .. "cheer  " .. PREFIX .. "laugh  " .. PREFIX .. "point\n" .. PREFIX .. "follow [mode] [studs]  " .. PREFIX .. "unfollow  " .. PREFIX .. "ping on/off\nModes: pf direct orbit line circle vee grid wall\n" .. PREFIX .. "loop secs cmd  " .. PREFIX .. "stoploop")
 faq("Not working?", "Toggle off, wrong or missing names, or old script on the alt.")
-
-local VirtualUser = game:GetService("VirtualUser")
 
 local pingPage = Instance.new("Frame")
 pingPage.Position = UDim2.fromOffset(0, 72)
@@ -1118,7 +1111,7 @@ stopLoopButton.Parent = actionsPage
 stopLoopButton.Position = UDim2.new(0.5, 5, 0, 218)
 
 -- ==========================================
--- MOVEMENT HACKS (Actions Tab) - SIDE BY SIDE
+-- MOVEMENT HACKS (Actions Tab)
 -- ==========================================
 local hacksFrame = Instance.new("Frame")
 hacksFrame.Position = UDim2.fromOffset(10, 260)
@@ -1301,7 +1294,6 @@ gui.Destroying:Connect(function()
 	if speedConn then speedConn:Disconnect() end
 	if jumpConn then jumpConn:Disconnect() end
 end)
--- ==========================================
 
 -- ==========================================
 -- SETTINGS PAGE (ScrollingFrame)
@@ -1467,10 +1459,9 @@ end)
 gui.Destroying:Connect(function()
 	if spyConnection then spyConnection:Disconnect() end
 end)
--- ==========================================
 
 -- ==========================================
--- DESTRUCTION PAGE (NEW DROPDOWN + HIGHLIGHTS)
+-- DESTRUCTION PAGE (Dropdown + Highlights)
 -- ==========================================
 local destructionPage = Instance.new("Frame")
 destructionPage.Position = UDim2.fromOffset(0, 72)
@@ -1492,7 +1483,6 @@ selectTargetsBtn.TextSize = 13
 selectTargetsBtn.Parent = destructionPage
 round(selectTargetsBtn)
 
--- Dropdown parented to GUI to avoid clipping
 local dropdownFrame = Instance.new("ScrollingFrame")
 dropdownFrame.Position = UDim2.fromOffset(32, 166)
 dropdownFrame.Size = UDim2.new(0, 380, 0, 150)
@@ -1543,9 +1533,6 @@ griefStatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 griefStatusLabel.Text = ""
 griefStatusLabel.Parent = destructionPage
 
--- ==========================================
--- LOGIC
--- ==========================================
 local isGriefing = false
 local griefLoop = nil
 local selectedTargets = {}
@@ -1671,7 +1658,6 @@ end
 updateSelectBtnText()
 applyHighlights()
 
--- Griefing Logic
 local function getSelectedPlayers()
 	local players = {}
 	if selectedTargets["ALL"] then
@@ -1846,7 +1832,6 @@ gui.Destroying:Connect(function()
 	clearHighlights()
 	dropdownFrame:Destroy()
 end)
--- ==========================================
 
 title.Size = UDim2.new(1, 0, 0, 26)
 title.TextSize = 13
