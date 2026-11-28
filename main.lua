@@ -1,5 +1,5 @@
 -- ==========================================
--- CORTEGE MAIN SCRIPT (Full Version + Fixed VirtualUser & Color Export)
+-- CORTEGE MAIN SCRIPT (Full Version + Direct Equip Fix)
 -- ==========================================
 
 -- 1. Load Settings from the Loader
@@ -267,6 +267,7 @@ local function say(text)
 	end
 end
 
+-- DIRECT HUMANOID EQUIP FUNCTION (Bypasses GUI entirely)
 local function equipTool(toolName)
     local tool = player.Backpack:FindFirstChild(toolName)
         or (player.Character and player.Character:FindFirstChild(toolName))
@@ -286,7 +287,9 @@ local function equipTool(toolName)
         end
         
         -- Direct equip via Humanoid (bypasses GUI entirely)
-        hum:EquipTool(tool)
+        pcall(function()
+            hum:EquipTool(tool)
+        end)
         task.wait(0.2)
         
         local newTool = hum.Parent:FindFirstChildWhichIsA("Tool")
@@ -302,6 +305,90 @@ local function equipTool(toolName)
     print("[ALT BUILD] ERROR: No humanoid found!")
     return false
 end
+
+local commands = {
+	jump = function()
+		local humanoid = getHumanoid()
+		if humanoid then
+			humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+		end
+	end,
+	sit = function()
+		local humanoid = getHumanoid()
+		if humanoid then
+			humanoid.Sit = true
+		end
+	end,
+	speed = function(args)
+		local humanoid = getHumanoid()
+		local value = tonumber(args[1])
+		if humanoid and value then
+			humanoid.WalkSpeed = math.clamp(value, 0, 100)
+		end
+	end,
+	stop = function()
+		local humanoid = getHumanoid()
+		if humanoid then
+			humanoid:Move(Vector3.zero)
+		end
+	end,
+	say = function(args)
+		local text = table.concat(args, " ")
+		if text ~= "" then
+			say(text)
+		end
+	end,
+	summon = function(args)
+		local targetName = args[1]
+		if not targetName then return end
+		
+		local targetPlr = Players:FindFirstChild(targetName)
+		if not targetPlr then return end
+		
+		local targetChar = targetPlr.Character
+		local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+		if not targetRoot then return end
+		
+		local humanoid = getHumanoid()
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		
+		if humanoid and root then
+			humanoid:MoveTo(targetRoot.Position)
+		end
+	end,
+	build = function(args)
+		print("[ALT BUILD] ========== STARTING BUILD COMMAND ==========")
+		print("[ALT BUILD] Received args:", table.concat(args, " "))
+		
+		if #args < 10 then 
+			print("[ALT BUILD] ERROR: Not enough arguments (got " .. #args .. ", need 10)")
+			return 
+		end
+		
+		local x, y, z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
+		local sx, sy, sz = tonumber(args[4]), tonumber(args[5]), tonumber(args[6])
+		local r, g, b = tonumber(args[7]), tonumber(args[8]), tonumber(args[9])
+		local material = args[10]
+		
+		print("[ALT BUILD] Parsed - Pos:", x, y, z, "Size:", sx, sy, sz, "Color:", r, g, b, "Mat:", material)
+		
+		if not (x and y and z and sx and sy and sz and r and g and b) then 
+			print("[ALT BUILD] ERROR: Failed to parse numbers")
+			return 
+		end
+		
+		local pos = Vector3.new(x, y, z)
+		local size = Vector3.new(sx, sy, sz)
+		
+		-- Smart color handling (handles both 0-1 floats and 0-255 ints)
+		local color = (r > 1) and Color3.fromRGB(r, g, b) or Color3.fromRGB(r * 255, g * 255, b * 255)
+		print("[ALT BUILD] Final color:", color)
+		
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not hrp then 
+			print("[ALT BUILD] ERROR: No HumanoidRootPart found")
+			return 
+		end
 		
 		-- Build Tool
 		local buildTool = player.Backpack:FindFirstChild("Build") 
@@ -585,7 +672,7 @@ local function startFollow(targetName, baseDistance, mode)
 						local rank = math.ceil(index / 2)
 						offset = Vector3.new(side * rank * baseGap * 0.8, 0, rank * baseGap)
 					elseif mode == "grid" then
-						local columns = math.ceil(math.sqrt(total))
+						local columns = math.ceil(sqrt(total))
 						local row = (index - 1) // columns
 						local column = (index - 1) % columns
 						offset = Vector3.new((column - (columns - 1) / 2) * baseGap, 0, baseGap * (row + 1))
