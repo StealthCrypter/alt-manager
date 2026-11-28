@@ -1676,101 +1676,211 @@ griefStatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 griefStatusLabel.Text = ""
 griefStatusLabel.Parent = destructionPage
 
--- === BUILDER TOOLS SECTION ===
-local builderFrame = Instance.new("Frame")
-builderFrame.Position = UDim2.fromOffset(10, 130)
-builderFrame.Size = UDim2.new(1, -20, 0, 260)
-builderFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
-builderFrame.BorderSizePixel = 0
-builderFrame.Parent = destructionPage
-round(builderFrame)
+-- ==========================================
+-- BUILDER TOOLS LOGIC (Workspace Relay - No Chat Spam)
+-- ==========================================
+local importedBuildData = nil
+local isBuilding = false
+local relayPart = nil
 
-local builderTitle = Instance.new("TextLabel")
-builderTitle.Size = UDim2.new(1, 0, 0, 25)
-builderTitle.BackgroundTransparency = 1
-builderTitle.Text = "Builder Tools"
-builderTitle.TextColor3 = Color3.fromRGB(130, 175, 255)
-builderTitle.Font = Enum.Font.GothamBold
-builderTitle.TextSize = 14
-builderTitle.TextXAlignment = Enum.TextXAlignment.Left
-builderTitle.Parent = builderFrame
+-- Initialize Workspace Relay Part
+task.spawn(function()
+    task.wait(2) -- Wait for character to load
+    relayPart = Instance.new("Part")
+    relayPart.Name = "CortegeRelay_" .. player.Name
+    relayPart.Anchored = true
+    relayPart.CanCollide = false
+    relayPart.Transparency = 1
+    relayPart.Position = Vector3.new(0, -10000, 0)
+    relayPart.Parent = workspace
+    
+    local cmdValue = Instance.new("StringValue")
+    cmdValue.Name = "Cmd"
+    cmdValue.Value = ""
+    cmdValue.Parent = relayPart
+    
+    gui.Destroying:Connect(function()
+        if relayPart then relayPart:Destroy() end
+    end)
+end)
 
-local exportBtn = Instance.new("TextButton")
-exportBtn.Position = UDim2.fromOffset(10, 30)
-exportBtn.Size = UDim2.new(1, -20, 0, 30)
-exportBtn.BackgroundColor3 = Color3.fromRGB(75, 110, 170)
-exportBtn.BorderSizePixel = 0
-exportBtn.Text = "Export Selected Bricks to JSON"
-exportBtn.TextColor3 = Color3.new(1, 1, 1)
-exportBtn.Font = Enum.Font.GothamBold
-exportBtn.TextSize = 13
-exportBtn.Parent = builderFrame
-round(exportBtn)
+local function getToolRemote(toolName)
+	local tool = player.Backpack:FindFirstChild(toolName) 
+		or (player.Character and player.Character:FindFirstChild(toolName))
+	if tool then
+		local s = tool:FindFirstChild("Script")
+		if s then return s:FindFirstChild("Event"), tool end
+	end
+	return nil, nil
+end
 
-local jsonBox = Instance.new("TextBox")
-jsonBox.Position = UDim2.fromOffset(10, 70)
-jsonBox.Size = UDim2.new(1, -20, 0, 60)
-jsonBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
-jsonBox.BorderSizePixel = 0
-jsonBox.PlaceholderText = "Paste JSON code here..."
-jsonBox.PlaceholderColor3 = Color3.fromRGB(170, 170, 175)
-jsonBox.Text = ""
-jsonBox.TextColor3 = Color3.new(1, 1, 1)
-jsonBox.Font = Enum.Font.Gotham
-jsonBox.TextSize = 12
-jsonBox.TextWrapped = true
-jsonBox.TextXAlignment = Enum.TextXAlignment.Left
-jsonBox.TextYAlignment = Enum.TextYAlignment.Top
-jsonBox.ClearTextOnFocus = false
-jsonBox.Parent = builderFrame
-round(jsonBox)
+local function equipTool(toolName)
+	local tool = player.Backpack:FindFirstChild(toolName)
+	if not tool then return false end
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum:EquipTool(tool)
+		task.wait(0.1)
+		return true
+	end
+	return false
+end
 
-local importBtn = Instance.new("TextButton")
-importBtn.Position = UDim2.fromOffset(10, 140)
-importBtn.Size = UDim2.fromOffset(190, 30)
-importBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
-importBtn.BorderSizePixel = 0
-importBtn.Text = "Load JSON"
-importBtn.TextColor3 = Color3.new(1, 1, 1)
-importBtn.Font = Enum.Font.GothamBold
-importBtn.TextSize = 13
-importBtn.Parent = builderFrame
-round(importBtn)
+-- EXPORT (Unchanged)
+exportBtn.Activated:Connect(function()
+	buildStatus.Text = "Status: Scanning bricks..."
+	task.spawn(function()
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not hrp then 
+			buildStatus.Text = "Status: Error (No Character)"
+			return 
+		end
 
-local buildBtn = Instance.new("TextButton")
-buildBtn.Position = UDim2.fromOffset(10, 180)
-buildBtn.Size = UDim2.fromOffset(190, 30)
-buildBtn.BackgroundColor3 = Color3.fromRGB(65, 125, 75)
-buildBtn.BorderSizePixel = 0
-buildBtn.Text = "Start Building"
-buildBtn.TextColor3 = Color3.new(1, 1, 1)
-buildBtn.Font = Enum.Font.GothamBold
-buildBtn.TextSize = 13
-buildBtn.Parent = builderFrame
-round(buildBtn)
+		local data = {}
+		local count = 0
+		
+		for _, folder in pairs(workspace.Bricks:GetChildren()) do
+			local shouldScan = selectedTargets["ALL"] or selectedTargets[folder.Name]
+			if shouldScan then
+				for _, brick in pairs(folder:GetChildren()) do
+					if brick:IsA("BasePart") and brick.Name == "Brick" then
+						local relPos = brick.Position - hrp.Position
+						table.insert(data, {
+							p = {relPos.X, relPos.Y, relPos.Z},
+							s = {brick.Size.X, brick.Size.Y, brick.Size.Z},
+							c = {brick.Color.R, brick.Color.G, brick.Color.B},
+							m = brick.Material.Name,
+							a = brick.Anchored
+						})
+						count += 1
+					end
+				end
+			end
+		end
 
-local stopBuildBtn = Instance.new("TextButton")
-stopBuildBtn.Position = UDim2.fromOffset(210, 180)
-stopBuildBtn.Size = UDim2.fromOffset(190, 30)
-stopBuildBtn.BackgroundColor3 = Color3.fromRGB(110, 65, 65)
-stopBuildBtn.BorderSizePixel = 0
-stopBuildBtn.Text = "Stop Building"
-stopBuildBtn.TextColor3 = Color3.new(1, 1, 1)
-stopBuildBtn.Font = Enum.Font.GothamBold
-stopBuildBtn.TextSize = 13
-stopBuildBtn.Parent = builderFrame
-round(stopBuildBtn)
+		if count == 0 then
+			buildStatus.Text = "Status: No bricks found for selection"
+			return
+		end
 
-local buildStatus = Instance.new("TextLabel")
-buildStatus.Position = UDim2.fromOffset(10, 220)
-buildStatus.Size = UDim2.new(1, -20, 0, 30)
-buildStatus.BackgroundTransparency = 1
-buildStatus.Text = "Status: Idle"
-buildStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
-buildStatus.Font = Enum.Font.GothamBold
-buildStatus.TextSize = 12
-buildStatus.TextXAlignment = Enum.TextXAlignment.Left
-buildStatus.Parent = builderFrame
+		local json = HttpService:JSONEncode(data)
+		
+		if #json > 50000 then
+			buildStatus.Text = "Status: Warning (JSON too large for clipboard)"
+			print("JSON too large, check output for data")
+		else
+			if setclipboard then
+				setclipboard(json)
+				buildStatus.Text = "Status: Copied " .. count .. " blocks to clipboard!"
+			else
+				buildStatus.Text = "Status: Executor missing setclipboard()"
+			end
+		end
+	end)
+end)
+
+-- IMPORT (Unchanged)
+importBtn.Activated:Connect(function()
+	local text = jsonBox.Text
+	if text == "" then
+		buildStatus.Text = "Status: Paste JSON first"
+		return
+	end
+	
+	local success, data = pcall(function()
+		return HttpService:JSONDecode(text)
+	end)
+	
+	if success and type(data) == "table" then
+		importedBuildData = data
+		buildStatus.Text = "Status: Loaded " .. #data .. " blocks ready to build"
+	else
+		buildStatus.Text = "Status: Invalid JSON format"
+	end
+end)
+
+-- BUILD (FIXED: Uses Workspace Relay instead of Chat)
+local function startBuilding()
+	if not importedBuildData then
+		buildStatus.Text = "Status: Load JSON first"
+		return
+	end
+	
+	if not relayPart or not relayPart:FindFirstChild("Cmd") then
+		buildStatus.Text = "Status: Relay not initialized yet..."
+		task.wait(2)
+		if not relayPart then 
+			buildStatus.Text = "Status: Failed to create relay part"
+			return 
+		end
+	end
+	
+	isBuilding = true
+	buildBtn.Text = "Building..."
+	buildStatus.Text = "Status: Sending Build Commands via Relay..."
+	
+	task.spawn(function()
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not hrp then return end
+		
+		local totalBlocks = #importedBuildData
+		local sentCount = 0
+		local cmdValue = relayPart:FindFirstChild("Cmd")
+		
+		for i, block in ipairs(importedBuildData) do
+			if not isBuilding then break end
+			
+			local targetPos = hrp.Position + Vector3.new(block.p[1], block.p[2], block.p[3])
+			local size = Vector3.new(block.s[1], block.s[2], block.s[3])
+			local color = Color3.new(block.c[1], block.c[2], block.c[3])
+			local material = block.m
+			
+			-- Format: !build x y z sx sy sz r g b material
+			local buildCmd = string.format("!build %.1f %.1f %.1f %.1f %.1f %.1f %d %d %d %s", 
+				targetPos.X, targetPos.Y, targetPos.Z,
+				size.X, size.Y, size.Z,
+				color.R * 255, color.G * 255, color.B * 255,
+				material
+			)
+			
+			-- WRITE TO WORKSPACE INSTEAD OF CHAT
+			if cmdValue then
+				cmdValue.Value = buildCmd
+			end
+			
+			sentCount += 1
+			
+			if i % 10 == 0 then
+				buildStatus.Text = string.format("Status: Sent %d/%d blocks", sentCount, totalBlocks)
+			end
+			
+			-- Small delay to let alts process the command before overwriting it
+			task.wait(0.15) 
+		end
+		
+		-- Clear the relay when done
+		if cmdValue then cmdValue.Value = "" end
+		
+		isBuilding = false
+		buildBtn.Text = "Start Building"
+		buildStatus.Text = "Status: Build Complete (" .. sentCount .. " commands sent)"
+	end)
+end
+
+buildBtn.Activated:Connect(function()
+	if not isBuilding then
+		startBuilding()
+	end
+end)
+
+stopBuildBtn.Activated:Connect(function()
+	isBuilding = false
+	buildBtn.Text = "Start Building"
+	buildStatus.Text = "Status: Build Stopped"
+	if relayPart and relayPart:FindFirstChild("Cmd") then
+		relayPart.Cmd.Value = ""
+	end
+end)
 
 -- ==========================================
 -- LOGIC
