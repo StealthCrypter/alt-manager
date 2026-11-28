@@ -319,40 +319,155 @@ local commands = {
 			humanoid:MoveTo(targetRoot.Position)
 		end
 	end,
-	build = function(args)
-		-- Args: x y z sx sy sz r g b material
-		if #args < 10 then return end
-		
-		local x, y, z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
-		local sx, sy, sz = tonumber(args[4]), tonumber(args[5]), tonumber(args[6])
-		local r, g, b = tonumber(args[7]), tonumber(args[8]), tonumber(args[9])
-		local material = args[10]
-		
-		if not (x and y and z and sx and sy and sz and r and g and b) then return end
-		
-		local pos = Vector3.new(x, y, z)
-		local size = Vector3.new(sx, sy, sz)
-		-- Check if values are already 0-255 or still 0-1 floats
-local color = (r > 1) and Color3.fromRGB(r, g, b) or Color3.fromRGB(r * 255, g * 255, b * 255)
-		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-		if not hrp then return end
-		
-		-- Use Build Tool
-		local buildTool = player.Backpack:FindFirstChild("Build") 
-			or (player.Character and player.Character:FindFirstChild("Build"))
-		
-		if buildTool then
-			local event = buildTool:FindFirstChild("Script") and buildTool.Script:FindFirstChild("Event")
-			if event then
-				local hum = player.Character:FindFirstChildOfClass("Humanoid")
-				if hum then hum:EquipTool(buildTool) end
-				task.wait(0.1)
-				pcall(function()
-					event:FireServer(hrp, Enum.NormalId.Top, pos, "detailed")
-				end)
-				task.wait(0.1)
-			end
-		end
+build = function(args)
+    print("[ALT BUILD] ========== STARTING BUILD COMMAND ==========")
+    print("[ALT BUILD] Received args:", table.concat(args, " "))
+    
+    -- Parse arguments
+    if #args < 10 then 
+        print("[ALT BUILD] ERROR: Not enough arguments (got " .. #args .. ", need 10)")
+        return 
+    end
+    
+    local x, y, z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
+    local sx, sy, sz = tonumber(args[4]), tonumber(args[5]), tonumber(args[6])
+    local r, g, b = tonumber(args[7]), tonumber(args[8]), tonumber(args[9])
+    local material = args[10]
+    
+    print("[ALT BUILD] Parsed - Pos:", x, y, z, "Size:", sx, sy, sz, "Color:", r, g, b, "Mat:", material)
+    
+    if not (x and y and z and sx and sy and sz and r and g and b) then 
+        print("[ALT BUILD] ERROR: Failed to parse numbers")
+        return 
+    end
+    
+    local pos = Vector3.new(x, y, z)
+    local size = Vector3.new(sx, sy, sz)
+    
+    -- Smart color handling (handles both 0-1 floats and 0-255 ints)
+    local color = (r > 1) and Color3.fromRGB(r, g, b) or Color3.fromRGB(r * 255, g * 255, b * 255)
+    print("[ALT BUILD] Final color:", color)
+    
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then 
+        print("[ALT BUILD] ERROR: No HumanoidRootPart found")
+        return 
+    end
+    
+    -- Check for Build Tool
+    local buildTool = player.Backpack:FindFirstChild("Build") 
+        or (player.Character and player.Character:FindFirstChild("Build"))
+    print("[ALT BUILD] Build tool found:", buildTool ~= nil)
+    
+    if buildTool then
+        local event = buildTool:FindFirstChild("Script") and buildTool.Script:FindFirstChild("Event")
+        print("[ALT BUILD] Build remote found:", event ~= nil)
+        
+        if event then
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then 
+                hum:EquipTool(buildTool)
+                task.wait(0.1)
+                print("[ALT BUILD] Equipped build tool")
+                
+                local success, err = pcall(function()
+                    event:FireServer(hrp, Enum.NormalId.Top, pos, "detailed")
+                end)
+                print("[ALT BUILD] Build FireServer - Success:", success, "Error:", err or "none")
+            else
+                print("[ALT BUILD] ERROR: No humanoid found")
+            end
+        else
+            print("[ALT BUILD] ERROR: Build tool missing Script.Event!")
+        end
+    else
+        print("[ALT BUILD] ERROR: Build tool not found in backpack or character!")
+    end
+    
+    task.wait(0.2)
+    
+    -- Check for Shape Tool
+    local shapeTool = player.Backpack:FindFirstChild("Shape") 
+        or (player.Character and player.Character:FindFirstChild("Shape"))
+    print("[ALT BUILD] Shape tool found:", shapeTool ~= nil)
+    
+    if shapeTool then
+        local event = shapeTool:FindFirstChild("Script") and shapeTool.Script:FindFirstChild("Event")
+        print("[ALT BUILD] Shape remote found:", event ~= nil)
+        
+        if event then
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then 
+                hum:EquipTool(shapeTool)
+                task.wait(0.1)
+                
+                local xInc = math.max(0, math.floor((size.X - 4) / 4))
+                local yInc = math.max(0, math.floor((size.Y - 4) / 4))
+                local zInc = math.max(0, math.floor((size.Z - 4) / 4))
+                
+                print("[ALT BUILD] Shape increases - X:", xInc, "Y:", yInc, "Z:", zInc)
+                
+                for i = 1, xInc do
+                    pcall(function() event:FireServer(hrp, Enum.NormalId.Right, pos, "increase") end)
+                    task.wait(0.05)
+                end
+                for i = 1, yInc do
+                    pcall(function() event:FireServer(hrp, Enum.NormalId.Top, pos, "increase") end)
+                    task.wait(0.05)
+                end
+                for i = 1, zInc do
+                    pcall(function() event:FireServer(hrp, Enum.NormalId.Front, pos, "increase") end)
+                    task.wait(0.05)
+                end
+                print("[ALT BUILD] Shape commands sent")
+            end
+        end
+    end
+    
+    task.wait(0.2)
+    
+    -- Check for Paint Tool
+    local paintTool = player.Backpack:FindFirstChild("Paint") 
+        or (player.Character and player.Character:FindFirstChild("Paint"))
+    print("[ALT BUILD] Paint tool found:", paintTool ~= nil)
+    
+    if paintTool then
+        local event = paintTool:FindFirstChild("Script") and paintTool.Script:FindFirstChild("Event")
+        print("[ALT BUILD] Paint remote found:", event ~= nil)
+        
+        if event then
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then 
+                hum:EquipTool(paintTool)
+                task.wait(0.1)
+                
+                local sides = {Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, 
+                              Enum.NormalId.Right, Enum.NormalId.Top, Enum.NormalId.Bottom}
+                
+                for _, side in ipairs(sides) do
+                    local success, err = pcall(function()
+                        event:FireServer(hrp, side, pos, "both", color, "", "")
+                    end)
+                    if not success then
+                        print("[ALT BUILD] Paint FireServer failed for side", side, "- Error:", err)
+                    end
+                    task.wait(0.03)
+                end
+                
+                if material and material ~= "Plastic" then
+                    local success, err = pcall(function()
+                        event:FireServer(hrp, Enum.NormalId.Top, pos, "material", color, material, "")
+                    end)
+                    print("[ALT BUILD] Material paint - Success:", success, "Error:", err or "none")
+                    task.wait(0.05)
+                end
+                print("[ALT BUILD] Paint commands completed")
+            end
+        end
+    end
+    
+    print("[ALT BUILD] ========== BUILD COMMAND FINISHED ==========")
+end,
 		
 		-- Use Shape Tool to resize
 		local shapeTool = player.Backpack:FindFirstChild("Shape") 
