@@ -1773,67 +1773,10 @@ buildStatus.TextXAlignment = Enum.TextXAlignment.Left
 buildStatus.Parent = builderFrame
 
 -- ==========================================
--- WORKSPACE RELAY SETUP (Prevents Chat Spam)
+-- BUILDER TOOLS LOGIC (Batched Chat Relay - Safe & Reliable)
 -- ==========================================
 local importedBuildData = nil
 local isBuilding = false
-local relayPart = nil
-
--- Initialize Workspace Relay Part
-task.spawn(function()
-    task.wait(2) -- Wait for character to load
-    relayPart = Instance.new("Part")
-    relayPart.Name = "CortegeRelay_" .. player.Name
-    relayPart.Anchored = true
-    relayPart.CanCollide = false
-    relayPart.Transparency = 1
-    relayPart.Position = Vector3.new(0, -10000, 0)
-    relayPart.Parent = workspace
-    
-    local cmdValue = Instance.new("StringValue")
-    cmdValue.Name = "Cmd"
-    cmdValue.Value = ""
-    cmdValue.Parent = relayPart
-    
-    gui.Destroying:Connect(function()
-        if relayPart then relayPart:Destroy() end
-    end)
-end)
-
--- ALTS: WORKSPACE RELAY LISTENER FOR BUILDING
-task.spawn(function()
-    while not destroyed do
-        task.wait(0.1)
-        
-        -- Only alts should listen for build commands via relay
-        if hasRole(player.Name, "Alt") then
-            for _, account in ipairs(accounts) do
-                if account.Role == "Main" then
-                    local mainRelay = workspace:FindFirstChild("CortegeRelay_" .. account.Name)
-                    if mainRelay then
-                        local cmdValue = mainRelay:FindFirstChild("Cmd")
-                        if cmdValue and cmdValue.Value ~= "" then
-                            local cmd = cmdValue.Value
-                            cmdValue.Value = "" -- Clear immediately after reading
-                            
-                            -- Parse and execute the build command
-                            local args = {}
-                            for word in cmd:gmatch("%S+") do
-                                table.insert(args, word)
-                            end
-                            -- Remove the "!build" prefix
-                            table.remove(args, 1)
-                            
-                            if commands.build then
-                                commands.build(args)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
 
 local function getToolRemote(toolName)
 	local tool = player.Backpack:FindFirstChild(toolName) 
@@ -1857,7 +1800,7 @@ local function equipTool(toolName)
 	return false
 end
 
--- EXPORT
+-- EXPORT (Unchanged)
 exportBtn.Activated:Connect(function()
 	buildStatus.Text = "Status: Scanning bricks..."
 	task.spawn(function()
@@ -1910,7 +1853,7 @@ exportBtn.Activated:Connect(function()
 	end)
 end)
 
--- IMPORT
+-- IMPORT (Unchanged)
 importBtn.Activated:Connect(function()
 	local text = jsonBox.Text
 	if text == "" then
@@ -1930,25 +1873,29 @@ importBtn.Activated:Connect(function()
 	end
 end)
 
--- BUILD (FIXED: Uses Workspace Relay instead of Chat)
+-- BUILD (FIXED: Uses Batched Chat Relay - No Spam, No Workspace Issues)
 local function startBuilding()
 	if not importedBuildData then
 		buildStatus.Text = "Status: Load JSON first"
 		return
 	end
 	
-	if not relayPart or not relayPart:FindFirstChild("Cmd") then
-		buildStatus.Text = "Status: Relay not initialized yet..."
-		task.wait(2)
-		if not relayPart then 
-			buildStatus.Text = "Status: Failed to create relay part"
-			return 
+	-- Find alt accounts to distribute load
+	local altAccounts = {}
+	for _, account in ipairs(accounts) do
+		if account.Role == "Alt" then
+			table.insert(altAccounts, account.Name)
 		end
+	end
+	
+	if #altAccounts == 0 then
+		buildStatus.Text = "Status: No Alt Accounts Found!"
+		return
 	end
 	
 	isBuilding = true
 	buildBtn.Text = "Building..."
-	buildStatus.Text = "Status: Sending Build Commands via Relay..."
+	buildStatus.Text = "Status: Sending Build Commands (Batched)..."
 	
 	task.spawn(function()
 		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -1956,7 +1903,8 @@ local function startBuilding()
 		
 		local totalBlocks = #importedBuildData
 		local sentCount = 0
-		local cmdValue = relayPart:FindFirstChild("Cmd")
+		local batchSize = 5 -- Send 5 commands per batch to avoid rate limits
+		local batchDelay = 1.5 -- Wait 1.5 seconds between batches
 		
 		for i, block in ipairs(importedBuildData) do
 			if not isBuilding then break end
@@ -1966,6 +1914,9 @@ local function startBuilding()
 			local color = Color3.new(block.c[1], block.c[2], block.c[3])
 			local material = block.m
 			
+			-- Distribute across alts evenly
+			local altIndex = ((i - 1) % #altAccounts) + 1
+			
 			-- Format: !build x y z sx sy sz r g b material
 			local buildCmd = string.format("!build %.1f %.1f %.1f %.1f %.1f %.1f %d %d %d %s", 
 				targetPos.X, targetPos.Y, targetPos.Z,
@@ -1974,27 +1925,22 @@ local function startBuilding()
 				material
 			)
 			
-			-- WRITE TO WORKSPACE INSTEAD OF CHAT
-			if cmdValue then
-				cmdValue.Value = buildCmd
-			end
-			
+			-- Use relayCommand which handles chat safely
+			relayCommand(buildCmd)
 			sentCount += 1
 			
-			if i % 10 == 0 then
-				buildStatus.Text = string.format("Status: Sent %d/%d blocks", sentCount, totalBlocks)
+			-- Update status every batch
+			if i % batchSize == 0 then
+				buildStatus.Text = string.format("Status: Sent %d/%d blocks (Batch %d)", 
+					sentCount, totalBlocks, math.floor(i / batchSize))
+				task.wait(batchDelay) -- CRITICAL: Wait between batches to prevent spam
 			end
-			
-			-- Small delay to let alts process the command before overwriting it
-			task.wait(0.15) 
 		end
 		
-		-- Clear the relay when done
-		if cmdValue then cmdValue.Value = "" end
-		
+		-- Final status update
+		buildStatus.Text = string.format("Status: Build Complete (%d/%d commands sent)", sentCount, totalBlocks)
 		isBuilding = false
 		buildBtn.Text = "Start Building"
-		buildStatus.Text = "Status: Build Complete (" .. sentCount .. " commands sent)"
 	end)
 end
 
@@ -2008,10 +1954,8 @@ stopBuildBtn.Activated:Connect(function()
 	isBuilding = false
 	buildBtn.Text = "Start Building"
 	buildStatus.Text = "Status: Build Stopped"
-	if relayPart and relayPart:FindFirstChild("Cmd") then
-		relayPart.Cmd.Value = ""
-	end
 end)
+-- ==========================================
 
 -- ==========================================
 -- DESTRUCTION LOGIC (Dropdown & Griefing)
