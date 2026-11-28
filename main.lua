@@ -1942,7 +1942,8 @@ exportBtn.Activated:Connect(function()
 							  math.max(0, math.min(255, math.round(brick.Color.R * 255))),
 							  math.max(0, math.min(255, math.round(brick.Color.G * 255))),
 							  math.max(0, math.min(255, math.round(brick.Color.B * 255))))
-						
+								
+						print("[EXPORT DEBUG] Brick:", brick.Name, "Raw Color:", brick.Color.R, brick.Color.G, brick.Color.B)
 						table.insert(data, {
 							p = {
 								math.round(relPos.X * 100) / 100,
