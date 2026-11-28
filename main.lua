@@ -1773,7 +1773,7 @@ buildStatus.TextXAlignment = Enum.TextXAlignment.Left
 buildStatus.Parent = builderFrame
 
 -- ==========================================
--- BUILDER TOOLS LOGIC (Batched Chat Relay - Safe & Reliable)
+-- BUILDER TOOLS LOGIC (Chat-Safe Export + Batched Relay)
 -- ==========================================
 local importedBuildData = nil
 local isBuilding = false
@@ -1800,7 +1800,7 @@ local function equipTool(toolName)
 	return false
 end
 
--- EXPORT (Unchanged)
+-- EXPORT (FIXED: Rounds coordinates to prevent chat truncation)
 exportBtn.Activated:Connect(function()
 	buildStatus.Text = "Status: Scanning bricks..."
 	task.spawn(function()
@@ -1820,11 +1820,18 @@ exportBtn.Activated:Connect(function()
 					if brick:IsA("BasePart") and brick.Name == "Brick" then
 						local relPos = brick.Position - hrp.Position
 						table.insert(data, {
-							p = {relPos.X, relPos.Y, relPos.Z},
+							p = {
+								math.round(relPos.X * 100) / 100,
+								math.round(relPos.Y * 100) / 100,
+								math.round(relPos.Z * 100) / 100
+							},
 							s = {brick.Size.X, brick.Size.Y, brick.Size.Z},
-							c = {brick.Color.R, brick.Color.G, brick.Color.B},
-							m = brick.Material.Name,
-							a = brick.Anchored
+							c = {
+								math.round(brick.Color.R * 255),
+								math.round(brick.Color.G * 255),
+								math.round(brick.Color.B * 255)
+							},
+							m = brick.Material.Name
 						})
 						count += 1
 					end
@@ -1873,14 +1880,13 @@ importBtn.Activated:Connect(function()
 	end
 end)
 
--- BUILD (FIXED: Uses Batched Chat Relay - No Spam, No Workspace Issues)
+-- BUILD (FIXED: Batched chat relay with length validation)
 local function startBuilding()
 	if not importedBuildData then
 		buildStatus.Text = "Status: Load JSON first"
 		return
 	end
 	
-	-- Find alt accounts to distribute load
 	local altAccounts = {}
 	for _, account in ipairs(accounts) do
 		if account.Role == "Alt" then
@@ -1903,41 +1909,40 @@ local function startBuilding()
 		
 		local totalBlocks = #importedBuildData
 		local sentCount = 0
-		local batchSize = 5 -- Send 5 commands per batch to avoid rate limits
-		local batchDelay = 1.5 -- Wait 1.5 seconds between batches
+		local batchSize = 3 -- Reduced from 5 to ensure no rate limits
+		local batchDelay = 2.0 -- Increased delay for safety
 		
 		for i, block in ipairs(importedBuildData) do
 			if not isBuilding then break end
 			
 			local targetPos = hrp.Position + Vector3.new(block.p[1], block.p[2], block.p[3])
 			local size = Vector3.new(block.s[1], block.s[2], block.s[3])
-			local color = Color3.new(block.c[1], block.c[2], block.c[3])
+			local color = Color3.fromRGB(block.c[1], block.c[2], block.c[3])
 			local material = block.m
 			
-			-- Distribute across alts evenly
-			local altIndex = ((i - 1) % #altAccounts) + 1
-			
-			-- Format: !build x y z sx sy sz r g b material
-			local buildCmd = string.format("!build %.1f %.1f %.1f %.1f %.1f %.1f %d %d %d %s", 
+			local buildCmd = string.format("!build %.2f %.2f %.2f %.1f %.1f %.1f %d %d %d %s", 
 				targetPos.X, targetPos.Y, targetPos.Z,
 				size.X, size.Y, size.Z,
-				color.R * 255, color.G * 255, color.B * 255,
+				color.R, color.G, color.B,
 				material
 			)
 			
-			-- Use relayCommand which handles chat safely
+			-- SAFETY CHECK: Skip commands that exceed chat limit
+			if #buildCmd > 180 then
+				warn("[CORTEGE] Skipping block " .. i .. ": Command too long (" .. #buildCmd .. " chars)")
+				continue
+			end
+			
 			relayCommand(buildCmd)
 			sentCount += 1
 			
-			-- Update status every batch
 			if i % batchSize == 0 then
 				buildStatus.Text = string.format("Status: Sent %d/%d blocks (Batch %d)", 
 					sentCount, totalBlocks, math.floor(i / batchSize))
-				task.wait(batchDelay) -- CRITICAL: Wait between batches to prevent spam
+				task.wait(batchDelay)
 			end
 		end
 		
-		-- Final status update
 		buildStatus.Text = string.format("Status: Build Complete (%d/%d commands sent)", sentCount, totalBlocks)
 		isBuilding = false
 		buildBtn.Text = "Start Building"
